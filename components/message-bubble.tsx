@@ -6,7 +6,7 @@ interface MessageBubbleProps {
     id: string
     content: string
     created_at: string
-    sender_family_id: string
+    sender_id: string
   }
   isOwnMessage: boolean
   senderName: string

@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, MapPin } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useEffect } from "react"
-import { signIn, signInWithGoogle } from "@/lib/actions"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useEffect, useState } from "react"
+import { signIn } from "@/lib/supabaseClient"
+import { signInWithGoogle } from "@/lib/auth/actions"
 
 function SubmitButton() {
   const { pending } = useFormStatus()
@@ -30,23 +31,36 @@ function SubmitButton() {
 
 export default function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [state, formAction] = useActionState(signIn, null)
+  const [callbackError, setCallbackError] = useState<string | null>(null)
 
   useEffect(() => {
     if (state?.success) {
-      router.push("/")
+      router.push("/dashboard")
     }
   }, [state, router])
+
+  useEffect(() => {
+    const error = searchParams.get("error")
+    if (error === "auth_callback_error") {
+      setCallbackError("Authentication failed. Please try signing in again.")
+      // Clear the error from URL
+      const newUrl = new URL(window.location.href)
+      newUrl.searchParams.delete("error")
+      window.history.replaceState({}, "", newUrl)
+    }
+  }, [searchParams])
 
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
         <div className="flex items-center justify-center mb-4">
           <MapPin className="h-8 w-8 text-emerald-600 mr-2" />
-          <span className="text-2xl font-bold text-emerald-600">FamilyConnect</span>
+          <span className="text-2xl font-bold text-emerald-600">nearo</span>
         </div>
         <CardTitle className="text-2xl">Welcome back</CardTitle>
-        <CardDescription>Sign in to find homeschooling families on your travels</CardDescription>
+        <CardDescription>Sign in to connect with families around the world or at home</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-3 mb-6">
@@ -89,9 +103,9 @@ export default function LoginForm() {
         </div>
 
         <div className="space-y-4">
-          {state?.error && (
+          {(state?.error || callbackError) && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
-              {state.error}
+              {state?.error || callbackError}
             </div>
           )}
 

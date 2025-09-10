@@ -1,23 +1,24 @@
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
+const supabase = createClientComponentClient();
+
 export async function fetchNotifications(userId: string) {
-  const supabase = createClientComponentClient();
   const { data, error } = await supabase
     .from("notifications")
-    .select("*")
+    .select("id, title, body, link, created_at, seen_at")
     .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-
+    .order("created_at", { ascending: false })
+    .limit(50);
   if (error) throw error;
-  return data || [];
+  // normalize for UI
+  return (data || []).map(n => ({ ...n, message: n.body }));
 }
 
 export async function markAllAsRead(userId: string) {
-  const supabase = createClientComponentClient();
   const { error } = await supabase
     .from("notifications")
-    .update({ is_read: true })
-    .eq("user_id", userId)
-    .eq("is_read", false);
+    .update({ seen_at: new Date().toISOString() })
+    .is("seen_at", null)
+    .eq("user_id", userId);
   if (error) throw error;
 }

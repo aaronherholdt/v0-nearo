@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { MapPin, Calendar, Users, Heart, Eye } from "lucide-react"
 import { format } from "date-fns"
-import { acceptMatch } from "@/lib/actions"
+import { acceptMatch } from "@/lib/supabaseClient"
 import Link from "next/link"
 
 interface FamilyTravelCardProps {

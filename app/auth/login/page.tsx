@@ -1,8 +1,9 @@
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import LoginForm from "@/components/login-form"
+import { Suspense } from "react"
 
-export default async function LoginPage() {
+function LoginPageContent() {
   if (!isSupabaseConfigured) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
@@ -11,18 +12,26 @@ export default async function LoginPage() {
     )
   }
 
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
+      <LoginForm />
+    </div>
+  )
+}
+
+export default async function LoginPage() {
+  if (!isSupabaseConfigured) {
+    return <LoginPageContent />
+  }
+
   const supabase = createClient()
   const {
     data: { session },
   } = await supabase.auth.getSession()
 
   if (session) {
-    redirect("/")
+    redirect("/dashboard")
   }
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
-      <LoginForm />
-    </div>
-  )
+  return <LoginPageContent />
 }
