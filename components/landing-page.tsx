@@ -41,7 +41,7 @@ export default function LandingPage() {
                 <MapPin className="h-8 w-8 text-emerald-600" />
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-400 rounded-full animate-pulse"></div>
               </div>
-              <span className="ml-2 text-2xl font-bold text-emerald-600 font-sans">FamilyConnect</span>
+              <span className="ml-2 text-2xl font-bold text-emerald-600 font-sans">nearo</span>
             </div>
             <div className="flex items-center space-x-4">
               <Button variant="ghost" asChild>
@@ -69,10 +69,6 @@ export default function LandingPage() {
           <div
             className={`text-center transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
           >
-            <div className="inline-flex items-center bg-emerald-100 text-emerald-800 px-4 py-2 rounded-full text-sm font-medium mb-8">
-              <Globe className="h-4 w-4 mr-2" />
-              Join 10,000+ Homeschooling Families Worldwide
-            </div>
 
             <h1 className="text-5xl md:text-7xl font-bold text-gray-900 mb-6 font-sans">
               Connect, Explore, and
@@ -80,7 +76,7 @@ export default function LandingPage() {
             </h1>
 
             <p className="text-xl md:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed">
-              Join a community of adventurous homeschooling families around the globe. Find your travel tribe and create
+              Join a community of adventurous families around the globe. Find your travel tribe, local lovelies and create
               unforgettable learning experiences together.
             </p>
 
@@ -101,22 +97,6 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Floating Elements */}
-        <div className="absolute top-1/4 left-10 animate-bounce delay-1000">
-          <div className="bg-blue-500 text-white p-3 rounded-full shadow-lg">
-            <Camera className="h-6 w-6" />
-          </div>
-        </div>
-        <div className="absolute top-1/3 right-10 animate-bounce delay-2000">
-          <div className="bg-purple-500 text-white p-3 rounded-full shadow-lg">
-            <BookOpen className="h-6 w-6" />
-          </div>
-        </div>
-        <div className="absolute bottom-1/4 left-1/4 animate-bounce delay-500">
-          <div className="bg-orange-500 text-white p-3 rounded-full shadow-lg">
-            <Heart className="h-6 w-6" />
-          </div>
-        </div>
       </section>
 
       {/* How It Works */}
@@ -280,7 +260,7 @@ export default function LandingPage() {
       <section className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6 font-sans">Families Love FamilyConnect</h2>
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6 font-sans">Families Love nearo</h2>
             <p className="text-xl text-gray-600">Real stories from our amazing community</p>
           </div>
 
@@ -298,7 +278,7 @@ export default function LandingPage() {
                 name: "Emma & David Chen",
                 location: "Toronto, Canada",
                 children: "Ages 6, 9",
-                quote: "FamilyConnect turned our solo travels into amazing community experiences. Highly recommend!",
+                quote: "nearo turned our solo travels into amazing community experiences. Highly recommend!",
                 rating: 5,
               },
               {
@@ -341,7 +321,7 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <h2 className="text-4xl md:text-5xl font-bold mb-6 font-sans">Ready to Start Your Adventure?</h2>
           <p className="text-xl mb-12 opacity-90">
-            Join thousands of homeschooling families creating amazing memories together around the world.
+            Join thousands of families creating amazing memories together around the world.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
@@ -382,9 +362,9 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center mb-4 md:mb-0">
               <MapPin className="h-8 w-8 text-emerald-400 mr-2" />
-              <span className="text-2xl font-bold font-sans">FamilyConnect</span>
+              <span className="text-2xl font-bold font-sans">nearo</span>
             </div>
-            <div className="text-gray-400">© 2024 FamilyConnect. Connecting homeschooling families worldwide.</div>
+            <div className="text-gray-400">© 2024 nearo. Connecting homeschooling families worldwide.</div>
           </div>
         </div>
       </footer>

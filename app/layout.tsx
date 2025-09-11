@@ -1,34 +1,31 @@
-import type { Metadata } from 'next'
-import { GeistSans } from 'geist/font/sans'
-import { GeistMono } from 'geist/font/mono'
-import './globals.css'
-import { Toaster } from "sonner"
+import "./globals.css"
+import type { Metadata } from "next"
+import { Inter } from "next/font/google"
+import { createClient } from "@/lib/supabase/server"
+import SimpleNav from "@/components/simple-nav"
+
+const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: 'FamilyConnect',
-  description: 'Homeschooling families, travel & meetups',
-  generator: 'v0.app',
+  title: "nearo - Connect with families during your travels",
+  description: "Connect with other families while traveling with your kids",
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode
-}>) {
+}) {
+  const supabase = createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
   return (
     <html lang="en">
-      <head>
-        <style>{`
-html {
-  font-family: ${GeistSans.style.fontFamily};
-  --font-sans: ${GeistSans.variable};
-  --font-mono: ${GeistMono.variable};
-}
-        `}</style>
-      </head>
-      <body>
-        {children}
-        <Toaster richColors position="top-right" />
+      <body className={`${inter.className} bg-gray-50 min-h-screen`}>
+        <SimpleNav user={user} />
+        <main>{children}</main>
       </body>
     </html>
   )

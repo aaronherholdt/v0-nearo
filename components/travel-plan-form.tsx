@@ -1,208 +1,297 @@
 "use client"
 
-import { useActionState, useState } from "react"
-import { useFormStatus } from "react-dom"
-import { Button } from "@/components/ui/button"
+import { useActionState } from "react"
+import { useState, useEffect, useRef } from "react"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, MapPin } from "lucide-react"
-import { createTravelPlan } from "@/lib/actions"
+import { Button } from "@/components/ui/button"
+import { DatePicker } from "@/components/ui/date-picker"
+import { useFormStatus } from "react-dom"
+import { createTravelPlan, updateTravelPlan } from "@/lib/supabaseClient"
+import { Switch } from "@/components/ui/switch"
+import { MapPin } from "lucide-react"
+import { getCurrentPosition, fetchLocationSuggestions, LocationSuggestion } from "@/lib/locationUtils"
 
-function SubmitButton() {
-  const { pending } = useFormStatus()
-
-  return (
-    <Button type="submit" disabled={pending} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">
-      {pending ? (
-        <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Creating travel plan...
-        </>
-      ) : (
-        "Create Travel Plan"
-      )}
-    </Button>
-  )
-}
-
-interface TravelPlanFormProps {
+type TravelPlanFormProps = {
   initialData?: {
+    id: string
     title: string
-    description: string
+    description?: string
     destination: string
-    latitude: number
-    longitude: number
+    latitude?: number | null
+    longitude?: number | null
     start_date: string
     end_date: string
     is_active: boolean
   }
+  isEdit?: boolean
 }
 
-export default function TravelPlanForm({ initialData }: TravelPlanFormProps) {
-  const [state, formAction] = useActionState(createTravelPlan, null)
+function SubmitButton({ isEdit }: { isEdit?: boolean }) {
+  const { pending } = useFormStatus()
+  return (
+    <Button type="submit" disabled={pending} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">
+      {pending ? (isEdit ? "Saving changes..." : "Creating trip...") : isEdit ? "Save Changes" : "Create Trip"}
+    </Button>
+  )
+}
+
+export default function TravelPlanForm({ initialData, isEdit }: TravelPlanFormProps) {
+  const [state, formAction] = useActionState(isEdit ? updateTravelPlan : createTravelPlan, null)
   const [destination, setDestination] = useState(initialData?.destination || "")
+  const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [inputFocused, setInputFocused] = useState(false)
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false)
+  const [userLocation, setUserLocation] = useState<{latitude: number, longitude: number} | null>(null)
+  const [debounceTimeout, setDebounceTimeout] = useState<NodeJS.Timeout | null>(null)
+  const suggestionRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  
+  // Get user's current location when component mounts
+  useEffect(() => {
+    getUserLocation()
+    
+    // Clean up timeout on unmount
+    return () => {
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout)
+      }
+    }
+  }, [debounceTimeout])
+  
+  // Get user's current location and fetch nearby locations
+  const getUserLocation = async () => {
+    try {
+      const position = await getCurrentPosition()
+      setUserLocation(position)
+      
+      // Fetch initial location suggestions based on user's position
+      fetchNearbySuggestions(position)
+    } catch (error) {
+      console.error("Error getting user location:", error)
+    }
+  }
+  
+  // Fetch nearby location suggestions
+  const fetchNearbySuggestions = async (position: {latitude: number, longitude: number}) => {
+    try {
+      setSuggestionsLoading(true)
+      const suggestions = await fetchLocationSuggestions("", position)
+      setLocationSuggestions(suggestions)
+    } catch (error) {
+      console.error("Error fetching nearby locations:", error)
+    } finally {
+      setSuggestionsLoading(false)
+    }
+  }
+  
+  // Handle location input change with debounce
+  const handleLocationInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setDestination(value)
+    
+    // Clear previous timeout
+    if (debounceTimeout) {
+      clearTimeout(debounceTimeout)
+    }
+    
+    // Set new timeout
+    const timeout = setTimeout(async () => {
+      if (value.length > 0) {
+        setSuggestionsLoading(true)
+        try {
+          const suggestions = await fetchLocationSuggestions(value, userLocation || undefined)
+          setLocationSuggestions(suggestions)
+          setShowSuggestions(true)
+        } catch (error) {
+          console.error("Error fetching location suggestions:", error)
+        } finally {
+          setSuggestionsLoading(false)
+        }
+      } else {
+        // If input is empty, fetch nearby locations
+        if (userLocation) {
+          fetchNearbySuggestions(userLocation)
+          setShowSuggestions(inputFocused)
+        } else {
+          setLocationSuggestions([])
+          setShowSuggestions(false)
+        }
+      }
+    }, 300) // 300ms debounce
+    
+    setDebounceTimeout(timeout)
+  }
+  
+  // Store standardized location data when selecting a suggestion
+  const [selectedStandardCity, setSelectedStandardCity] = useState<string | null>(null)
+  const [selectedStandardCountry, setSelectedStandardCountry] = useState<string | null>(null)
+  const [selectedLocationLat, setSelectedLocationLat] = useState<number | null>(null)
+  const [selectedLocationLng, setSelectedLocationLng] = useState<number | null>(null)
+  
+  // Handle suggestion selection
+  const handleSelectSuggestion = (suggestion: LocationSuggestion) => {
+    setDestination(suggestion.fullName)
+    setSelectedStandardCity(suggestion.standardCity)
+    setSelectedStandardCountry(suggestion.standardCountry)
+    setSelectedLocationLat(suggestion.lat)
+    setSelectedLocationLng(suggestion.lon)
+    setShowSuggestions(false)
+  }
+  
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        suggestionRef.current && 
+        !suggestionRef.current.contains(event.target as Node) &&
+        inputRef.current && 
+        !inputRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false)
+      }
+    }
+    
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [])
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div>
-          <Card>
-            <CardHeader className="text-center">
-              <div className="flex items-center justify-center mb-4">
-                <MapPin className="h-8 w-8 text-emerald-600 mr-2" />
+    <div className="max-w-2xl mx-auto">
+      <Card>
+        <CardHeader>
+          <CardTitle>{isEdit ? "Edit Trip" : "Create a Trip"}</CardTitle>
+          <CardDescription>Set a destination and dates so other families can match with you.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form action={formAction} className="space-y-6">
+            {state?.error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">{state.error}</div>
+            )}
+            {state?.success && (
+              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md text-sm">
+                {state.success}
               </div>
-              <CardTitle className="text-2xl">Add Travel Plan</CardTitle>
-              <CardDescription>
-                Share your travel destination and dates to connect with other homeschooling families
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form action={formAction} className="space-y-6">
-                {state?.error && (
-                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
-                    {state.error}
-                  </div>
-                )}
+            )}
 
-                {state?.success && (
-                  <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md text-sm">
-                    {state.success}
-                  </div>
-                )}
+            {isEdit && initialData?.id && <input type="hidden" name="id" value={initialData.id} />}
 
-                <div className="space-y-2">
-                  <label htmlFor="title" className="block text-sm font-medium text-gray-700">
-                    Trip Title *
-                  </label>
-                  <Input
-                    id="title"
-                    name="title"
-                    placeholder="Summer vacation in Barcelona"
-                    required
-                    className="w-full"
-                    defaultValue={initialData?.title}
-                  />
-                </div>
+            {/* Hidden inputs for standardized location data */}
+            {selectedStandardCity && <input type="hidden" name="standard_city" value={selectedStandardCity} />}
+            {selectedStandardCountry && <input type="hidden" name="standard_country" value={selectedStandardCountry} />}
+            {selectedLocationLat && <input type="hidden" name="location_lat" value={selectedLocationLat.toString()} />}
+            {selectedLocationLng && <input type="hidden" name="location_lng" value={selectedLocationLng.toString()} />}
 
-                <div className="space-y-2">
-                  <label htmlFor="destination" className="block text-sm font-medium text-gray-700">
-                    Destination *
-                  </label>
-                  <Input
-                    id="destination"
-                    name="destination"
-                    placeholder="Barcelona, Spain"
-                    required
-                    className="w-full"
-                    defaultValue={initialData?.destination}
-                    value={destination}
-                    onChange={(e) => setDestination(e.target.value)}
-                  />
-                  <p className="text-xs text-gray-500">Enter city, country or specific location</p>
-                </div>
+            <div className="space-y-2">
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700">Trip Title *</label>
+              <Input id="title" name="title" placeholder="Summer in Paris" defaultValue={initialData?.title || ""} required />
+            </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label htmlFor="start_date" className="block text-sm font-medium text-gray-700">
-                      Start Date *
-                    </label>
-                    <Input
-                      id="start_date"
-                      name="start_date"
-                      type="date"
-                      required
-                      className="w-full"
-                      defaultValue={initialData?.start_date}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label htmlFor="end_date" className="block text-sm font-medium text-gray-700">
-                      End Date *
-                    </label>
-                    <Input
-                      id="end_date"
-                      name="end_date"
-                      type="date"
-                      required
-                      className="w-full"
-                      defaultValue={initialData?.end_date}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                    Description
-                  </label>
-                  <Textarea
-                    id="description"
-                    name="description"
-                    placeholder="Tell other families about your travel plans, what you're hoping to see and do, and what kind of meetups you'd be interested in..."
-                    rows={4}
-                    className="w-full"
-                    defaultValue={initialData?.description}
-                  />
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="is_active"
-                    name="is_active"
-                    className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                    defaultChecked={initialData?.is_active ?? true}
-                  />
-                  <label htmlFor="is_active" className="text-sm text-gray-700">
-                    Make this travel plan active (visible to other families)
-                  </label>
-                </div>
-
-                <SubmitButton />
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="lg:sticky lg:top-6">
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center">
-                <MapPin className="h-5 w-5 text-emerald-600 mr-2" />
-                Where you'll be
-              </CardTitle>
-              <CardDescription>{destination || "Enter a destination to see it highlighted"}</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="h-96 lg:h-[500px] w-full rounded-b-lg overflow-hidden">
-                {destination ? (
-                  <div className="h-full bg-gradient-to-br from-emerald-50 to-blue-50 flex items-center justify-center text-gray-700 p-6">
-                    <div className="text-center max-w-sm">
-                      <MapPin className="h-16 w-16 mx-auto mb-4 text-emerald-500" />
-                      <h3 className="text-xl font-semibold mb-2">{destination}</h3>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Your travel destination is set! Other families traveling to this area will be able to find and
-                        connect with you.
-                      </p>
-                      <div className="bg-white rounded-lg p-3 text-xs">
-                        <p className="font-medium text-emerald-600">✓ Destination saved</p>
+            <div className="space-y-2">
+              <label htmlFor="destination" className="block text-sm font-medium text-gray-700">Destination *</label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  id="destination"
+                  ref={inputRef}
+                  name="destination"
+                  value={destination}
+                  onChange={handleLocationInputChange}
+                  onFocus={() => {
+                    setInputFocused(true)
+                    // Only show suggestions if we have some or if we're loading them
+                    if (locationSuggestions.length > 0 || suggestionsLoading) {
+                      setShowSuggestions(true)
+                    }
+                  }}
+                  onBlur={() => {
+                    setInputFocused(false)
+                    // Delay hiding suggestions to allow for clicks
+                    setTimeout(() => {
+                      if (!inputFocused) {
+                        setShowSuggestions(false)
+                      }
+                    }, 200)
+                  }}
+                  placeholder="Paris, France"
+                  className="w-full pl-9"
+                  required
+                />
+                
+                {/* Location suggestions dropdown */}
+                {showSuggestions && (
+                  <div 
+                    ref={suggestionRef}
+                    className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm border border-gray-200"
+                  >
+                    {suggestionsLoading ? (
+                      <div className="text-center py-2">
+                        <div className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-emerald-500 border-t-transparent"></div>
+                        <p className="text-xs text-gray-500 mt-1">Loading suggestions...</p>
                       </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="h-full bg-gray-100 flex items-center justify-center text-gray-500">
-                    <div className="text-center">
-                      <MapPin className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                      <p>Enter a destination to preview your travel plan</p>
-                    </div>
+                    ) : locationSuggestions.length === 0 ? (
+                      <div className="px-3 py-2 text-sm text-gray-500">
+                        No locations found
+                      </div>
+                    ) : (
+                      locationSuggestions.map((suggestion) => (
+                        <div
+                          key={suggestion.id}
+                          className="cursor-pointer hover:bg-gray-100 py-2 px-3"
+                          onMouseDown={() => handleSelectSuggestion(suggestion)}
+                        >
+                          <div className="flex items-start">
+                            <MapPin className="h-4 w-4 text-gray-400 mt-0.5 mr-2 flex-shrink-0" />
+                            <div>
+                              <p className="text-sm font-medium">{suggestion.fullName}</p>
+                              {suggestion.distance !== undefined && (
+                                <p className="text-xs text-gray-500">
+                                  {suggestion.distance < 1 
+                                    ? 'Nearby' 
+                                    : `${Math.round(suggestion.distance)} km away`}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">From *</label>
+                <DatePicker name="start_date" defaultValue={initialData?.start_date ? new Date(initialData.start_date) : undefined} />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Until *</label>
+                <DatePicker name="end_date" defaultValue={initialData?.end_date ? new Date(initialData.end_date) : undefined} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
+              <Textarea id="description" name="description" placeholder="Optional details..." defaultValue={initialData?.description || ""} rows={3} />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Switch id="is_active" name="is_active" defaultChecked={initialData?.is_active ?? true} />
+              <label htmlFor="is_active" className="text-sm text-gray-700">Active</label>
+            </div>
+
+            <SubmitButton isEdit={isEdit} />
+          </form>
+        </CardContent>
+      </Card>
     </div>
   )
 }
+
+
