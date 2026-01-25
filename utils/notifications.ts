@@ -1,4 +1,4 @@
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createClientComponentClient } from "@/lib/supabase/client";
 
 const supabase = createClientComponentClient();
 
@@ -22,3 +22,4 @@ export async function markAllAsRead(userId: string) {
     .eq("user_id", userId);
   if (error) throw error;
 }
+

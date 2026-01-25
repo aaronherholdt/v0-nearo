@@ -26,3 +26,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .vercel
+
+
+#Ignore cursor AI rules
+.cursor\rules\codacy.mdc

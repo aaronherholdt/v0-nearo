@@ -36,8 +36,8 @@ export default function LoginForm() {
   const [callbackError, setCallbackError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (state?.success) {
-      router.push("/dashboard")
+    if (state?.redirectTo) {
+      router.push(state.redirectTo)
     }
   }, [state, router])
 
@@ -57,7 +57,7 @@ export default function LoginForm() {
       <CardHeader className="text-center">
         <div className="flex items-center justify-center mb-4">
           <MapPin className="h-8 w-8 text-emerald-600 mr-2" />
-          <span className="text-2xl font-bold text-emerald-600">nearo</span>
+          <span className="text-2xl font-bold text-emerald-600">Nearo</span>
         </div>
         <CardTitle className="text-2xl">Welcome back</CardTitle>
         <CardDescription>Sign in to connect with families around the world or at home</CardDescription>
@@ -65,6 +65,7 @@ export default function LoginForm() {
       <CardContent>
         <div className="space-y-3 mb-6">
           <form action={signInWithGoogle}>
+            <input type="hidden" name="flow" value="login" />
             <Button
               type="submit"
               variant="outline"
@@ -118,9 +119,14 @@ export default function LoginForm() {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
+              <div className="flex items-center justify-between">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                  Password
+                </label>
+                <Link href="/auth/forgot-password" className="text-sm text-emerald-600 hover:text-emerald-700">
+                  Forgot password?
+                </Link>
+              </div>
               <Input id="password" name="password" type="password" required className="w-full" />
             </div>
 

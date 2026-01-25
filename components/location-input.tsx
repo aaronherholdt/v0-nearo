@@ -53,18 +53,18 @@ export default function LocationInput(props: {
         value={value}
         onChange={(e) => { onValueChange(e.target.value); setOpen(true) }}
         onFocus={() => setOpen(true)}
-        placeholder={placeholder || "City, Town or Village"}
+        placeholder={placeholder || "City, Town, Village or Island"}
         autoFocus={autoFocus}
       />
       {open && (rows.length > 0 || loading) && (
-        <div className="absolute z-20 mt-1 w-full rounded-md border bg-white shadow">
+        <div className="absolute z-[1000] mt-1 w-full rounded-md border bg-white shadow">
           {loading ? (
             <div className="px-3 py-2 text-sm text-gray-500">Searching…</div>
           ) : rows.map((r) => (
             <button
               key={r.id + r.fullName}
               type="button"
-              className="block w-full px-3 py-2 text-left hover:bg-gray-50"
+              className="block w-full px-3 py-2 text-left hover:bg-gray-50 cursor-pointer"
               onClick={() => {
                 onPick({
                     id: r.id,

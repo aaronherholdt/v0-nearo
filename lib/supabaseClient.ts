@@ -1,13 +1,12 @@
 "use server"
 
-import { createServerActionClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
+import { getPostAuthRedirectPath } from "@/lib/auth/redirects"
 
 export async function signInWithGoogle() {
-  const cookieStore = cookies()
-  const supabase = createServerActionClient({ cookies: () => cookieStore })
+  const supabase = await createClient()
 
   const base = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
   const next = "/dashboard" // Change to your real homepage if different
@@ -39,8 +38,7 @@ export async function signIn(prevState: any, formData: FormData) {
     return { error: "Email and password are required" }
   }
 
-  const cookieStore = cookies()
-  const supabase = createServerActionClient({ cookies: () => cookieStore })
+  const supabase = await createClient()
 
   try {
     const { error } = await supabase.auth.signInWithPassword({
@@ -52,7 +50,8 @@ export async function signIn(prevState: any, formData: FormData) {
       return { error: error.message }
     }
 
-    return { success: true }
+    const redirectTo = await getPostAuthRedirectPath(supabase)
+    return { success: true, redirectTo }
   } catch (error) {
     console.error("Login error:", error)
     return { error: "An unexpected error occurred. Please try again." }
@@ -71,8 +70,7 @@ export async function signUp(prevState: any, formData: FormData) {
     return { error: "Email and password are required" }
   }
 
-  const cookieStore = cookies()
-  const supabase = createServerActionClient({ cookies: () => cookieStore })
+  const supabase = await createClient()
 
   try {
     const { error } = await supabase.auth.signUp({
@@ -89,7 +87,7 @@ export async function signUp(prevState: any, formData: FormData) {
       return { error: error.message }
     }
 
-    return { success: "Check your email to confirm your account." }
+    return { success: "Almost there! We've emailed a confirmation link. Don't see it? Check Spam/Promotions. If it's there, mark \"Not spam\" and move it to your Inbox so you don't miss matches or meetup updates. Add admin@nearo.forum to contacts." }
   } catch (error) {
     console.error("Sign up error:", error)
     return { error: "An unexpected error occurred. Please try again." }
@@ -97,8 +95,7 @@ export async function signUp(prevState: any, formData: FormData) {
 }
 
 export async function signOut() {
-  const cookieStore = cookies()
-  const supabase = createServerActionClient({ cookies: () => cookieStore })
+  const supabase = await createClient()
   await supabase.auth.signOut()
   redirect("/auth/login")
 }
@@ -126,8 +123,7 @@ export async function declineMatch(formData: FormData) {
 }
 
 export async function sendMessage(formData: FormData) {
-  const cookieStore = cookies()
-  const supabase = createServerActionClient({ cookies: () => cookieStore })
+  const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()

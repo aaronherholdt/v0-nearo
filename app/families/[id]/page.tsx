@@ -1,18 +1,21 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
+import { headers } from "next/headers"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MapPin, MessageCircle, Edit, CheckCircle2, Users } from "lucide-react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { formatChildSummary } from "@/lib/childrenUtils"
 
 interface FamilyProfile {
   id: string
   family_name: string
   bio?: string
   kids_ages?: string
-  children?: Array<{ name?: string; gender?: string; age?: number | string | null }>
+  children?: Array<{ name?: string; gender?: string; age?: number | string | null; birthdate?: string | null; birth_year?: number | null }>
   current_location: string | null
   standard_city?: string | null
   standard_country?: string | null
@@ -24,6 +27,7 @@ interface FamilyProfile {
   avatar_url?: string
   homeschool_style?: string
   available_to_meet?: boolean
+  match_prefs?: any
 }
 
 export default async function FamilyProfilePage({
@@ -31,7 +35,7 @@ export default async function FamilyProfilePage({
 }: {
   params: { id: string }
 }) {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // Get current user
   const {
@@ -56,7 +60,7 @@ export default async function FamilyProfilePage({
   // Get the family profile
   const { data: familyProfile, error } = await supabase
     .from("profiles")
-    .select("*")
+    .select("*, match_prefs")
     .eq("id", params.id)
     .single()
 
@@ -66,27 +70,21 @@ export default async function FamilyProfilePage({
 
   const profile = familyProfile as FamilyProfile
 
+  // Determine back link based on referer
+  const headersList = headers()
+  const referer = headersList.get('referer') || ''
+  const cameFromFamilies = referer.includes('/families') && !referer.includes('/families/')
+  const cameFromWorldview = referer.includes('/worldview')
+  const backHref = cameFromFamilies ? '/families' : '/worldview'
+  const backText = cameFromFamilies ? 'Back to Families' : 'Back to Worldview'
+
   // Helper function for kids formatting
   function formatKids(children: any, kidsAges?: string) {
     // First try to use the children JSON array if available
     if (Array.isArray(children) && children.length > 0) {
       const kidDetails = children
-        .map((c: any) => {
-          // Extract age and gender, ensuring they are properly formatted
-          const age = c.age !== null && c.age !== undefined ? String(c.age) : undefined;
-          const gender = c.gender ? c.gender.charAt(0).toUpperCase() + c.gender.slice(1) : undefined;
-
-          // Format the display string based on available data
-          if (age && gender) {
-            return `${gender} ${age}`;
-          } else if (age) {
-            return `Age ${age}`;
-          } else if (gender) {
-            return gender;
-          }
-          return c.name || undefined;
-        })
-        .filter(Boolean);
+        .map((c: any) => formatChildSummary(c))
+        .filter((entry): entry is string => Boolean(entry));
 
       // Return formatted string if we have details
       if (kidDetails.length > 0) {
@@ -104,13 +102,13 @@ export default async function FamilyProfilePage({
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-4xl mx-auto px-4 pt-6 pb-28 md:py-8">
       {/* Header */}
       <div className="mb-6">
-        <Link href="/families" className="text-emerald-600 hover:text-emerald-700 mb-4 inline-block">
-          ← Back to Families
+        <Link href={backHref} className="text-emerald-600 hover:text-emerald-700 mb-4 inline-block">
+          ← {backText}
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
           <Avatar className="h-20 w-20">
             <AvatarImage
               src={profile.family_photo_url || profile.avatar_url}
@@ -140,7 +138,7 @@ export default async function FamilyProfilePage({
               )}
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="hidden md:flex gap-2">
             <Link href={`/chat/${profile.id}`}>
               <Button className="bg-emerald-600 hover:bg-emerald-700">
                 <MessageCircle className="h-4 w-4 mr-2" />
@@ -151,90 +149,149 @@ export default async function FamilyProfilePage({
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Main Profile Card */}
-        <div className="md:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>About the Family</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Bio */}
-              {profile.bio && (
-                <div>
-                  <h3 className="font-medium mb-2">About Us</h3>
-                  <p className="text-gray-700 leading-relaxed">{profile.bio}</p>
-                </div>
-              )}
+      {/* Current Location */}
+      {profile.current_location && (
+        <div className="mb-6 flex items-start gap-3">
+          <MapPin className="h-5 w-5 text-emerald-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-medium text-gray-900">{profile.current_location}</p>
+            {profile.current_until && (
+              <p className="text-sm text-gray-600">
+                Until {new Date(profile.current_until).toLocaleDateString()}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
-              {/* Children Details */}
-              <div>
-                <h3 className="font-medium mb-3">Children</h3>
-                {Array.isArray(profile.children) && profile.children.length > 0 ? (
-                  <div className="space-y-2">
-                    {profile.children.map((child, index) => (
-                      <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                        <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center text-sm font-medium text-emerald-700">
-                          {child.age || "?"}
-                        </div>
-                        <div>
-                          <p className="font-medium">
-                            {child.name || `Child ${index + 1}`}
-                            {child.gender && (
-                              <span className="text-gray-600 ml-2">
-                                ({child.gender.charAt(0).toUpperCase() + child.gender.slice(1)})
-                              </span>
-                            )}
-                          </p>
-                          {child.age && (
-                            <p className="text-sm text-gray-600">Age {child.age}</p>
-                          )}
+      <div className="grid gap-6 md:grid-cols-1">
+        {/* Main Profile Card */}
+        <div className="md:col-span-1">
+          <Card>
+            <CardContent>
+              <Tabs defaultValue="about" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="about" className="cursor-pointer">About Family</TabsTrigger>
+                  {profile.match_prefs && profile.match_prefs.visibility?.show_advanced !== false && (
+                    <TabsTrigger value="advanced" className="cursor-pointer">Advanced Profile</TabsTrigger>
+                  )}
+                </TabsList>
+
+                <TabsContent value="about" className="space-y-6 mt-6">
+                  {/* Bio */}
+                  {profile.bio && (
+                    <div>
+                      <h3 className="font-medium mb-2">About Us</h3>
+                      <p className="text-gray-700 leading-relaxed">{profile.bio}</p>
+                    </div>
+                  )}
+                </TabsContent>
+
+                {profile.match_prefs && profile.match_prefs.visibility?.show_advanced !== false && (
+                  <TabsContent value="advanced" className="space-y-6 mt-6">
+                    {/* Interests */}
+                    {profile.match_prefs.interests && profile.match_prefs.interests.length > 0 && (
+                      <div>
+                        <h3 className="font-medium mb-3 text-gray-700">Interests</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {profile.match_prefs.interests.map((interest: string) => (
+                            <span key={interest} className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              {interest}
+                            </span>
+                          ))}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-600">
-                    {profile.kids_ages || "Children details not specified"}
-                  </p>
-                )}
-              </div>
+                    )}
 
-              {/* Homeschool Style */}
-              {profile.homeschool_style && (
-                <div>
-                  <h3 className="font-medium mb-2">Homeschool Style</h3>
-                  <p className="text-gray-700">{profile.homeschool_style}</p>
-                </div>
-              )}
+                    {/* Looking for */}
+                    {profile.match_prefs.looking_for && profile.match_prefs.looking_for.length > 0 && (
+                      <div>
+                        <h3 className="font-medium mb-3 text-gray-700">Looking for</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {profile.match_prefs.looking_for.map((item: string) => (
+                            <span key={item} className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-50 text-blue-700 border border-blue-200">
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Languages */}
+                    {profile.match_prefs.languages && profile.match_prefs.languages.length > 0 && (
+                      <div>
+                        <h3 className="font-medium mb-3 text-gray-700">Languages</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {profile.match_prefs.languages.map((language: string) => (
+                            <span key={language} className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-50 text-purple-700 border border-purple-200">
+                              {language}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Inclusion */}
+                    {profile.match_prefs.inclusion_tags && profile.match_prefs.inclusion_tags.length > 0 && (
+                      <div>
+                        <h3 className="font-medium mb-3 text-gray-700">Inclusion & Accessibility</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {profile.match_prefs.inclusion_tags.map((tag: string) => (
+                            <span key={tag} className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-orange-50 text-orange-700 border border-orange-200">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Travel */}
+                    {(profile.match_prefs.travel?.modes || profile.match_prefs.travel?.max_km || profile.match_prefs.travel?.max_minutes) && (
+                      <div>
+                        <h3 className="font-medium mb-3 text-gray-700">Travel Preferences</h3>
+                        <div className="space-y-3">
+                          {profile.match_prefs.travel?.modes && profile.match_prefs.travel.modes.length > 0 && (
+                            <div>
+                              <p className="text-sm text-gray-600 mb-2">Preferred travel modes:</p>
+                              <div className="flex flex-wrap gap-2">
+                                {profile.match_prefs.travel.modes.map((mode: string) => (
+                                  <span key={mode} className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-50 text-gray-700 border border-gray-200">
+                                    {mode}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {profile.match_prefs.travel?.max_km && (
+                              <div className="flex items-center gap-2">
+                                <MapPin className="h-4 w-4 text-gray-500" />
+                                <span className="text-sm">Max distance: {profile.match_prefs.travel.max_km} km</span>
+                              </div>
+                            )}
+                            {profile.match_prefs.travel?.max_minutes && (
+                              <div className="flex items-center gap-2">
+                                <CheckCircle2 className="h-4 w-4 text-gray-500" />
+                                <span className="text-sm">Max travel time: {profile.match_prefs.travel.max_minutes} minutes</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </TabsContent>
+                )}
+              </Tabs>
             </CardContent>
           </Card>
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Current Location */}
-          {profile.current_location && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Current Location</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-start gap-3">
-                  <MapPin className="h-5 w-5 text-emerald-500 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="font-medium">{profile.current_location}</p>
-                    {profile.current_until && (
-                      <p className="text-sm text-gray-600">
-                        Until {new Date(profile.current_until).toLocaleDateString()}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
+      </div>
+
+      {/* Sidebar */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="space-y-6">
           {/* Future Plans */}
           {profile.future_location && (
             <Card>
@@ -257,25 +314,17 @@ export default async function FamilyProfilePage({
             </Card>
           )}
 
-          {/* Action Buttons */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="space-y-3">
-                <Link href={`/chat/${profile.id}`} className="block">
-                  <Button className="w-full bg-emerald-600 hover:bg-emerald-700">
-                    <MessageCircle className="h-4 w-4 mr-2" />
-                    Send Message
-                  </Button>
-                </Link>
-                <Link href="/families" className="block">
-                  <Button variant="outline" className="w-full">
-                    View All Families
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
         </div>
+      </div>
+
+      {/* Mobile sticky action */}
+      <div className="fixed bottom-4 left-4 right-4 md:hidden z-50">
+        <Link href={`/chat/${profile.id}`}>
+          <Button className="w-full h-12 rounded-full bg-emerald-600 hover:bg-emerald-700 shadow-lg">
+            <MessageCircle className="h-5 w-5 mr-2" />
+            Message
+          </Button>
+        </Link>
       </div>
     </div>
   )

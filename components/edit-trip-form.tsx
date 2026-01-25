@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { MapPin, Calendar } from "lucide-react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { createClientComponentClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { fetchLocationSuggestions, LocationSuggestion } from "@/lib/locationUtils"
@@ -288,3 +288,4 @@ export default function EditTripForm({ thread }: EditTripFormProps) {
     </form>
   )
 }
+

@@ -1,7 +1,7 @@
 // utils/settings.ts
 "use client";
 
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createClientComponentClient } from "@/lib/supabase/client";
 
 export type UserSettings = {
   user_id: string;
@@ -47,3 +47,4 @@ export async function updateFamilyBasics(familyId: string, updates: {
     .eq("id", familyId);
   if (error) throw error;
 }
+

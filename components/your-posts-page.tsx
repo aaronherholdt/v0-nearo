@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { MessageSquare, Trash2, Edit } from "lucide-react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { createClientComponentClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import Link from "next/link"
@@ -26,29 +26,30 @@ interface YourPostsPageProps {
 
 export default function YourPostsPage({ user, profile, posts }: YourPostsPageProps) {
   const [userPosts, setUserPosts] = useState<ForumPost[]>(posts)
-  const [isDeleting, setIsDeleting] = useState<Record<string, boolean>>({})
   const router = useRouter()
   const supabase = createClientComponentClient()
 
   async function handleDelete(postId: string) {
     try {
-      setIsDeleting(prev => ({ ...prev, [postId]: true }))
-      
-      // Delete the post
-      const { error } = await supabase
+      // optional: guard
+      if (!confirm("Delete this post? This cannot be undone.")) return
+
+      const { data, error } = await supabase
         .from("forum_topics")
         .delete()
         .eq("id", postId)
-      
+        .select("id")        // <-- forces returning rows
+
       if (error) throw error
-      
-      setUserPosts(userPosts.filter(post => post.id !== postId))
-      toast.success("Post deleted successfully")
-    } catch (error) {
-      console.error("Error deleting post:", error)
-      toast.error("Failed to delete post")
-    } finally {
-      setIsDeleting(prev => ({ ...prev, [postId]: false }))
+      if (!data?.length) throw new Error("Not permitted or already deleted")
+
+      // remove from local list immediately
+      setUserPosts(prev => prev.filter(p => p.id !== postId))
+
+      toast.success("Post deleted")
+      router.refresh()      // refresh RSC so right-rails update on nav
+    } catch (err: any) {
+      toast.error(err.message ?? "Failed to delete")
     }
   }
 
@@ -124,13 +125,7 @@ export default function YourPostsPage({ user, profile, posts }: YourPostsPagePro
                             Edit
                           </Button>
                         </Link>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => handleDelete(post.id)}
-                          disabled={isDeleting[post.id]}
-                        >
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(post.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -145,3 +140,4 @@ export default function YourPostsPage({ user, profile, posts }: YourPostsPagePro
     </div>
   )
 }
+

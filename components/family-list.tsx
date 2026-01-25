@@ -1,19 +1,20 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { createClientComponentClient } from "@/lib/supabase/client"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { MapPin, Users, MessageCircle } from "lucide-react"
 import Link from "next/link"
 import { getCurrentPosition, fetchLocationSuggestions, LocationSuggestion, normalizeCity, reverseGeocode } from "@/lib/locationUtils"
+import { formatChildSummary } from "@/lib/childrenUtils"
 
 interface FamilyProfile {
   id: string
   family_name: string
   kids_ages?: string
-  children?: Array<{ name?: string; gender?: string; age?: number | string | null }>
+  children?: Array<{ name?: string; gender?: string; age?: number | string | null; birthdate?: string | null; birth_year?: number | null }>
   current_location: string | null
   standard_city?: string | null
   standard_country?: string | null
@@ -26,6 +27,7 @@ interface FamilyProfile {
 export default function FamilyList() {
   const [families, setFamilies] = useState<FamilyProfile[]>([])
   const [locationFilter, setLocationFilter] = useState("")
+  const [nameFilter, setNameFilter] = useState("")
   const [loading, setLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [userProfile, setUserProfile] = useState<FamilyProfile | null>(null)
@@ -163,7 +165,7 @@ export default function FamilyList() {
   const handleSelectSuggestion = (suggestion: LocationSuggestion) => {
     setLocationFilter(suggestion.fullName)
     setShowSuggestions(false)
-    fetchFamilies(suggestion.fullName, currentUserId, suggestion.standardCity)
+    fetchFamilies(suggestion.fullName, currentUserId, suggestion.standardCity, nameFilter)
   }
   
   // Close suggestions when clicking outside
@@ -197,7 +199,8 @@ export default function FamilyList() {
   async function fetchFamilies(
     location: string,
     userId: string | null = currentUserId,
-    standardCity?: string
+    standardCity?: string,
+    name?: string
   ) {
     try {
       setLoading(true)
@@ -221,6 +224,12 @@ export default function FamilyList() {
         )
       }
 
+      const normalizedName = name?.trim()
+      if (normalizedName) {
+        // Case-insensitive search on family_name
+        query = query.ilike("family_name", `%${normalizedName}%`)
+      }
+
       const { data, error } = await query.order("updated_at", { ascending: false })
       if (error) {
         console.error("Error fetching families:", error);
@@ -232,6 +241,7 @@ export default function FamilyList() {
         userId,
         standardCity,
         normalizedCity: city,
+        name,
         resultCount: data?.length || 0,
         results: data
       });
@@ -244,9 +254,8 @@ export default function FamilyList() {
   
   function handleSearch() {
     setShowSuggestions(false)
-    // We don't have standardized city/country here, so just use the locationFilter
-    // This will fall back to exact string matching in fetchFamilies
-    fetchFamilies(locationFilter, currentUserId)
+    // Use both filters; any of them can be empty
+    fetchFamilies(locationFilter, currentUserId, undefined, nameFilter)
   }
 
   return (
@@ -322,6 +331,21 @@ export default function FamilyList() {
               Search
             </Button>
           </div>
+
+          <div className="space-y-1">
+            <label htmlFor="nameFilter" className="text-sm font-medium text-gray-700">
+              Or search by family name
+            </label>
+            <Input
+              id="nameFilter"
+              value={nameFilter}
+              onChange={(e) => setNameFilter(e.target.value)}
+              placeholder="e.g. Smith, Oliveira"
+            />
+            <p className="text-xs text-gray-500">
+              You can combine location + surname, or leave one blank.
+            </p>
+          </div>
         </div>
       </div>
       
@@ -336,9 +360,9 @@ export default function FamilyList() {
             <Users className="h-12 w-12 mx-auto text-gray-300 mb-4" />
             <h3 className="text-lg font-medium mb-2">No families found</h3>
             <p className="text-gray-500 mb-4">
-              {locationFilter
-                ? `No families currently in ${locationFilter}`
-                : "Try searching for a specific location"}
+              {locationFilter || nameFilter
+                ? "No families match those filters. Try adjusting the location or surname."
+                : "Try searching by location or family name."}
             </p>
           </CardContent>
         </Card>
@@ -357,15 +381,8 @@ export default function FamilyList() {
                           {Array.isArray(family.children) && family.children.length > 0
                             ? (() => {
                                 const parts = family.children
-                                  .map((c) => {
-                                    const age = c?.age != null ? String(c.age) : undefined
-                                    const gender = c?.gender ? `${String(c.gender).charAt(0).toUpperCase()}${String(c.gender).slice(1)}` : undefined
-                                    if (age && gender) return `${gender} ${age}`
-                                    if (age) return `Age ${age}`
-                                    if (gender) return gender
-                                    return c?.name || undefined
-                                  })
-                                  .filter(Boolean)
+                                  .map((c) => formatChildSummary(c))
+                                  .filter((entry): entry is string => Boolean(entry))
                                 return parts.length > 0 ? `Kids: ${parts.join(", ")}` : `Kids: ${family.children?.length === 1 ? "1 kid" : `${family.children?.length || 0} kids`}`
                               })()
                             : `Kids: ${family.kids_ages || "Not specified"}`}
@@ -425,3 +442,4 @@ export default function FamilyList() {
     </div>
   )
 }
+

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation"
 import ThreadPage from "@/components/forum/thread-page"
 
 export default async function ForumThreadPage({ params }: { params: { id: string } }) {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   // Get the current user
   const {

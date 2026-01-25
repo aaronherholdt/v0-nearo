@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createClientComponentClient } from "@/lib/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { IconUser, IconUsers, IconCalendar, IconLogout } from "@tabler/icons-react";
 
@@ -112,3 +112,4 @@ export default function AvatarMenu({ user, family }: Props) {
     </DropdownMenu.Root>
   );
 }
+

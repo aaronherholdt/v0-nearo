@@ -4,21 +4,47 @@ import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Calendar, MapPin, Users, Edit } from "lucide-react"
+import IconPageShell from "@/components/icon-page-shell"
+
+// Helper function to normalize city names for consistent matching
+const normalizeCity = (s?: string | null) =>
+  s
+    ? s.split(",")[0]
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim()
+    : ""
 
 export default async function EventsPage() {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  
+
   if (!user) {
     redirect("/auth/login")
   }
+
+  // Compute today for filtering upcoming events
+  const today = new Date().toISOString().split("T")[0]
+  
+  // Get user's location for filtering local events
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('standard_city, standard_country, location_full_name, current_location')
+    .eq('id', user.id)
+    .single()
+    
+  // Get normalized city for consistent matching
+  const userCityKey = normalizeCity(
+    profile?.standard_city || profile?.location_full_name || profile?.current_location
+  )
 
   // Fetch user's created meetups
   const { data: createdMeetups } = await supabase
     .from("forum_topics")
     .select(`
-      id, 
-      title, 
+      id,
+      title,
       body,
       created_at,
       meta,
@@ -27,7 +53,9 @@ export default async function EventsPage() {
     `)
     .eq("category", "meetups")
     .eq("author_id", user.id)
-    .order("created_at", { ascending: false })
+    .gte("meetup_date", today)
+    .eq("meetup_status", "upcoming")
+    .order("meetup_date", { ascending: true })
 
   // Fetch user's RSVPed meetups
   const { data: rsvps } = await supabase
@@ -45,8 +73,8 @@ export default async function EventsPage() {
   const { data: rsvpedMeetups } = filteredRsvpIds.length > 0 ? await supabase
     .from("forum_topics")
     .select(`
-      id, 
-      title, 
+      id,
+      title,
       body,
       created_at,
       meta,
@@ -54,7 +82,31 @@ export default async function EventsPage() {
       author_family_name
     `)
     .in("id", filteredRsvpIds)
-    .order("created_at", { ascending: false })
+    .gte("meetup_date", today)
+    .eq("meetup_status", "upcoming")
+    .order("meetup_date", { ascending: true })
+  : { data: [] }
+  
+  // Fetch local meetups that the user hasn't created or RSVPed to
+  const { data: localMeetups } = userCityKey ? await supabase
+    .from("forum_topics")
+    .select(`
+      id,
+      title,
+      body,
+      created_at,
+      meta,
+      author_id,
+      author_family_name
+    `)
+    .eq("category", "meetups")
+    .filter('meta->>city_id', 'eq', userCityKey)
+    .not('id', 'in', [...createdMeetupIds, ...rsvpMeetupIds])
+    .neq('author_id', user.id)
+    .gte("meetup_date", today)
+    .eq("meetup_status", "upcoming")
+    .order("meetup_date", { ascending: true })
+    .limit(6)
   : { data: [] }
 
   // For each meetup, get the RSVP count
@@ -74,25 +126,30 @@ export default async function EventsPage() {
   
   const createdMeetupsWithCounts = await addRsvpCounts(createdMeetups)
   const rsvpedMeetupsWithCounts = await addRsvpCounts(rsvpedMeetups)
+  const localMeetupsWithCounts = await addRsvpCounts(localMeetups)
   
   // Check if there are no events at all
-  const hasNoEvents = createdMeetupsWithCounts.length === 0 && rsvpedMeetupsWithCounts.length === 0
+  const hasNoEvents = createdMeetupsWithCounts.length === 0 && 
+    rsvpedMeetupsWithCounts.length === 0 && 
+    localMeetupsWithCounts.length === 0
 
   // If no events at all, show empty state
   if (hasNoEvents) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-bold mb-6">Your Events</h1>
-        <Card>
-          <CardContent className="p-6 text-center">
-            <Calendar className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-            <p className="text-gray-600 mb-4">You don't have any events yet.</p>
-            <Link href="/forum/meetups">
-              <Button className="bg-emerald-600 hover:bg-emerald-700">Browse Meetups</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
+      <IconPageShell contentClassName="flex flex-col">
+        <div className="max-w-7xl mx-auto px-4 py-6 w-full">
+          <h1 className="text-2xl font-bold mb-6">Your Events</h1>
+          <Card>
+            <CardContent className="p-6 text-center">
+              <Calendar className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+              <p className="text-gray-600 mb-4">You don't have any events yet.</p>
+              <Link href="/forum/meetups">
+                <Button className="bg-emerald-600 hover:bg-emerald-700">Browse Meetups</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+      </IconPageShell>
     )
   }
 
@@ -147,26 +204,37 @@ export default async function EventsPage() {
   )
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
-      <h1 className="text-2xl font-bold mb-6">Your Events</h1>
-      
-      {createdMeetupsWithCounts.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">Events You Created</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {createdMeetupsWithCounts.map(meetup => renderMeetupCard(meetup, true))}
+    <IconPageShell contentClassName="flex flex-col">
+      <div className="max-w-7xl mx-auto px-4 py-6 w-full">
+        <h1 className="text-2xl font-bold mb-6">Your Events</h1>
+        
+        {createdMeetupsWithCounts.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold mb-4">Events You Created</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {createdMeetupsWithCounts.map(meetup => renderMeetupCard(meetup, true))}
+            </div>
           </div>
-        </div>
-      )}
-      
-      {rsvpedMeetupsWithCounts.length > 0 && (
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Events You're Attending</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {rsvpedMeetupsWithCounts.map(meetup => renderMeetupCard(meetup, false))}
+        )}
+        
+        {rsvpedMeetupsWithCounts.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold mb-4">Events You're Attending</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {rsvpedMeetupsWithCounts.map(meetup => renderMeetupCard(meetup, false))}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+
+        {localMeetupsWithCounts.length > 0 && (
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Events Near You</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {localMeetupsWithCounts.map(meetup => renderMeetupCard(meetup, false))}
+            </div>
+          </div>
+        )}
+      </div>
+    </IconPageShell>
   )
 }

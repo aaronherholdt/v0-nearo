@@ -1,13 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
-import { Calendar, MapPin } from "lucide-react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { Calendar } from "lucide-react"
+import { createClientComponentClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import LocationInput from "@/components/location-input"
+import { getCurrentPosition, normalizeCity } from "@/lib/locationUtils"
 
 interface EditMeetupFormProps {
   thread: any
@@ -22,6 +24,21 @@ export default function EditMeetupForm({ thread }: EditMeetupFormProps) {
   const [location, setLocation] = useState(thread.meta?.place_id || "")
   const [time, setTime] = useState(thread.meta?.time || "")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [standardCity, setStandardCity] = useState<string | null>(thread.meta?.city_id || null)
+  const [locationLat, setLocationLat] = useState<number | null>(thread.meta?.location_lat || null)
+  const [locationLng, setLocationLng] = useState<number | null>(thread.meta?.location_lng || null)
+  const [userPosition, setUserPosition] = useState<{ latitude: number; longitude: number } | null>(null)
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const pos = await getCurrentPosition()
+        setUserPosition(pos)
+      } catch {
+        // ignore
+      }
+    })()
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -55,7 +72,9 @@ export default function EditMeetupForm({ thread }: EditMeetupFormProps) {
         ...thread.meta,
         place_id: trimmedLocation,
         time: time || extractTimeFromTitle(trimmedTitle),
-        city_id: userProfile?.standard_city || thread.meta?.city_id,
+        city_id: standardCity || userProfile?.standard_city || thread.meta?.city_id || normalizeCity(trimmedLocation),
+        location_lat: locationLat ?? thread.meta?.location_lat ?? null,
+        location_lng: locationLng ?? thread.meta?.location_lng ?? null,
       }
       
       // Update the thread
@@ -122,16 +141,19 @@ export default function EditMeetupForm({ thread }: EditMeetupFormProps) {
         <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
           Location
         </label>
-        <div className="flex items-center gap-2">
-          <MapPin className="h-4 w-4 text-gray-500" />
-          <Input
-            id="location"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            placeholder="Location (required for meetups)"
-            required
-          />
-        </div>
+        <LocationInput
+          value={location}
+          onValueChange={setLocation}
+          onPick={(loc) => {
+            setLocation(loc.fullName)
+            setStandardCity(normalizeCity(loc.city))
+            setLocationLat(loc.latitude ?? null)
+            setLocationLng(loc.longitude ?? null)
+          }}
+          placeholder="Location (required for meetups)"
+          userPosition={userPosition}
+          autoFocus={false}
+        />
       </div>
       
       <div>
@@ -168,3 +190,4 @@ export default function EditMeetupForm({ thread }: EditMeetupFormProps) {
     </form>
   )
 }
+

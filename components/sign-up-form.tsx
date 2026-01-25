@@ -35,14 +35,15 @@ export default function SignUpForm() {
       <CardHeader className="text-center">
         <div className="flex items-center justify-center mb-4">
           <MapPin className="h-8 w-8 text-emerald-600 mr-2" />
-          <span className="text-2xl font-bold text-emerald-600">nearo</span>
+          <span className="text-2xl font-bold text-emerald-600">Nearo</span>
         </div>
-        <CardTitle className="text-2xl">Join nearo</CardTitle>
+        <CardTitle className="text-2xl">Join Nearo</CardTitle>
         <CardDescription>Connect with families around the world or at home.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           <form action={signInWithGoogle}>
+            <input type="hidden" name="flow" value="signup" />
             <Button
               type="submit"
               variant="outline"

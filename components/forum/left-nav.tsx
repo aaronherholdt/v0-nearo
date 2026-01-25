@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 
 type Counts = { general: number; trips: number; meetups: number }
@@ -151,5 +151,6 @@ export default function ForumLeftNav() {
     </nav>
   )
 }
+
 
 

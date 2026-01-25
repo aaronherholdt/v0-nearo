@@ -16,11 +16,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { MessageCircle, MapPin } from "lucide-react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { createClientComponentClient } from "@/lib/supabase/client"
 import { fetchLocationSuggestions, getCurrentPosition, type LocationSuggestion } from "@/lib/locationUtils"
+import { deriveAgeFromChild } from "@/lib/childrenUtils"
+
+type ComposerSection = "General" | "Discussion" | "Trips" | "Meetups" | "Hubs"
 
 type MetaInput = {
-  section: "General" | "Trips" | "Meetups" | "Hubs"
+  section: ComposerSection
   tripId?: string
   hubId?: string
   meetupId?: string
@@ -36,6 +39,7 @@ type MetaInput = {
     ageMax?: number
     locationLat?: number
     locationLng?: number
+    meetupDate?: string
   }
 }
 
@@ -62,6 +66,7 @@ function buildMeta(m: MetaInput) {
         meetup_id: m.meetupId ?? null,
         location_lat: m.form.locationLat ?? null,
         location_lng: m.form.locationLng ?? null,
+        date: m.form.meetupDate ?? null,
       }
     case "Hubs":
       return { hub_id: m.hubId ?? null }
@@ -76,23 +81,40 @@ type ComposerProps = {
   tripId?: string
   hubId?: string
   meetupId?: string
+  titleOverride?: string
+  compact?: boolean
+  sectionOverride?: ComposerSection
 }
 
-export default function ContextComposer({ onPost, tripId, hubId, meetupId }: ComposerProps) {
+export default function ContextComposer({
+  onPost,
+  tripId,
+  hubId,
+  meetupId,
+  titleOverride,
+  compact,
+  sectionOverride,
+}: ComposerProps) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClientComponentClient()
-  const section = useMemo(() => {
+  const baseSection = useMemo<ComposerSection>(() => {
     if (pathname?.startsWith("/forum/trips")) return "Trips"
     if (pathname?.startsWith("/forum/meetups")) return "Meetups"
-    if (pathname?.startsWith("/forum/hubs")) return "Hubs"
+    if (pathname?.startsWith("/hubs")) return "Hubs"
     return "General"
   }, [pathname])
+  const section: ComposerSection = sectionOverride ?? baseSection
 
   const placeholders = {
     General: {
       title: "Title: e.g., Playdate in {city} this weekend?",
       body: "Write a short description...",
+      chips: ["Question", "Advice", "Share"]
+    },
+    Discussion: {
+      title: "Discussion topic: what's on your mind?",
+      body: "Share details or ask a question for the community...",
       chips: ["Question", "Advice", "Share"]
     },
     Trips: {
@@ -113,11 +135,29 @@ export default function ContextComposer({ onPost, tripId, hubId, meetupId }: Com
   } as const
 
   const p = placeholders[section as keyof typeof placeholders]
+  const defaultTitle =
+    section === "Trips" ? "Book a Trip" :
+    section === "Meetups" ? "Plan a Meetup" :
+    "Start a Discussion"
+  const cardTitle = titleOverride ?? defaultTitle
+  const cardClass = compact ? "shadow-sm border border-emerald-100" : undefined
+  const headerClass = compact ? "px-4 py-3 pb-2" : undefined
+  const contentClass = compact ? "px-4 pt-0 pb-4" : undefined
+  const formSpacing = compact ? "space-y-2" : "space-y-3"
+  const textAreaRows = compact ? 2 : 3
+  const titleClass = compact ? "text-base font-semibold" : undefined
+  const metaRowClass = compact
+    ? "flex items-center gap-2 text-xs text-gray-600"
+    : "flex items-center gap-2 text-sm text-gray-600"
+  const controlsRowClass = compact
+    ? "flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+    : "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
   const [title, setTitle] = useState("")
   const [body, setBody] = useState("")
   const [location, setLocation] = useState("")
   const [tripStart, setTripStart] = useState("")
   const [tripEnd, setTripEnd] = useState("")
+  const [meetupDate, setMeetupDate] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -204,8 +244,8 @@ export default function ContextComposer({ onPost, tripId, hubId, meetupId }: Com
     setLocation(suggestion.fullName)
     setSelectedStandardCity(suggestion.standardCity)
     setSelectedStandardCountry(suggestion.standardCountry)
-    setSelectedLocationLat(suggestion.lat)
-    setSelectedLocationLng(suggestion.lon)
+    setSelectedLocationLat(suggestion.latitude)
+    setSelectedLocationLng(suggestion.longitude)
     setShowSuggestions(false)
   }
 
@@ -245,6 +285,11 @@ export default function ContextComposer({ onPost, tripId, hubId, meetupId }: Com
       return
     }
 
+    if (section === "Meetups" && !meetupDate) {
+      setError("Please pick a date for your meetup")
+      return
+    }
+
     try {
       setSubmitting(true)
 
@@ -254,8 +299,14 @@ export default function ContextComposer({ onPost, tripId, hubId, meetupId }: Com
         return
       }
 
-      // Normalize UI section to DB category slug
-      const category = section.toLowerCase()
+      // Normalize UI section -> DB category
+      const category =
+        section === "Trips" ? "trips" :
+        section === "Meetups" ? "meetups" :
+        "general"
+
+      // derive kind from the tab/override
+      const kind = sectionOverride === "Discussion" ? "discussion" : "feed"
 
       // Fetch lightweight profile details used for meta
       const { data: profile } = await supabase
@@ -266,9 +317,9 @@ export default function ContextComposer({ onPost, tripId, hubId, meetupId }: Com
 
       // Derive kids ages from children JSON if available
       const kidsAgesArray: number[] = Array.isArray(profile?.children)
-        ? (profile?.children as any[])
-            .map((c: any) => (typeof c?.age === "number" ? c.age : Number.parseInt(String(c?.age ?? ""), 10)))
-            .filter((n: number) => Number.isFinite(n))
+        ? (profile.children as any[])
+            .map((c: any) => deriveAgeFromChild(c))
+            .filter((age): age is number => age !== null)
         : []
 
       // Get user's location information
@@ -298,6 +349,7 @@ export default function ContextComposer({ onPost, tripId, hubId, meetupId }: Com
           // Location coordinates
           locationLat: selectedLocationLat || undefined,
           locationLng: selectedLocationLng || undefined,
+          meetupDate: section === "Meetups" ? meetupDate || undefined : undefined,
         },
       })
 
@@ -308,8 +360,10 @@ export default function ContextComposer({ onPost, tripId, hubId, meetupId }: Com
           title: trimmedTitle,
           body: trimmedBody,
           category,
+          kind,
           meta,
           author_family_name: profile?.family_name || null,
+          meetup_date: section === "Meetups" && meetupDate ? meetupDate : null,
         })
         .select("id")
         .single()
@@ -358,6 +412,7 @@ export default function ContextComposer({ onPost, tripId, hubId, meetupId }: Com
       setLocation("")
       setTripStart("")
       setTripEnd("")
+      setMeetupDate("")
       router.refresh()
     } catch (err: any) {
       console.error("Error creating topic:", err)
@@ -376,18 +431,14 @@ export default function ContextComposer({ onPost, tripId, hubId, meetupId }: Com
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          {section === "Trips" ? "Book a Trip" :
-           section === "Meetups" ? "Plan a Meetup" :
-           "Start a Discussion"}
-        </CardTitle>
+    <Card className={cardClass}>
+      <CardHeader className={headerClass}>
+        <CardTitle className={titleClass}>{cardTitle}</CardTitle>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={submit} className="space-y-3">
+      <CardContent className={contentClass}>
+        <form onSubmit={submit} className={formSpacing}>
           <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={p.title} />
-          <Textarea rows={3} value={body} onChange={(e) => setBody(e.target.value)} placeholder={p.body} />
+          <Textarea rows={textAreaRows} value={body} onChange={(e) => setBody(e.target.value)} placeholder={p.body} />
           {(section === "Meetups" || section === "Trips") && (
             <div className="relative">
               <div className="flex items-center gap-2">
@@ -408,7 +459,7 @@ export default function ContextComposer({ onPost, tripId, hubId, meetupId }: Com
               {showSuggestions && (
                 <div ref={suggestionRef} className="absolute left-6 right-0 z-10 mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
                   {suggestionsLoading && (
-                    <div className="px-3 py-2 text-sm text-gray-500">Searching…</div>
+                    <div className="px-3 py-2 text-sm text-gray-500">Searching...</div>
                   )}
                   {!suggestionsLoading && locationSuggestions.length === 0 && (
                     <div className="px-3 py-2 text-sm text-gray-500">No matches</div>
@@ -429,31 +480,41 @@ export default function ContextComposer({ onPost, tripId, hubId, meetupId }: Com
           )}
           {section === "Trips" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <Input 
-                type="date" 
+              <Input
+                type="date"
                 value={tripStart}
                 onChange={(e) => setTripStart(e.target.value)}
                 placeholder="Start date"
               />
-              <Input 
-                type="date" 
+              <Input
+                type="date"
                 value={tripEnd}
                 onChange={(e) => setTripEnd(e.target.value)}
                 placeholder="End date"
               />
             </div>
           )}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+          {section === "Meetups" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <Input
+                type="date"
+                value={meetupDate}
+                onChange={(e) => setMeetupDate(e.target.value)}
+                placeholder="Meetup date"
+              />
+            </div>
+          )}
+          <div className={controlsRowClass}>
+            <div className={metaRowClass}>
               <MessageCircle className="h-4 w-4" /> Auto-category: <Badge variant="secondary">{section}</Badge>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
               {p.chips.map((chip) => (
                 <Button key={chip} type="button" variant="outline" size="sm" className="cursor-pointer" onClick={() => setTitle((t) => t || chip)}>
                   {chip}
                 </Button>
               ))}
-              <Button type="submit" disabled={submitting || !title.trim() || !body.trim()} className="bg-emerald-600 hover:bg-emerald-700 cursor-pointer">
+              <Button type="submit" disabled={submitting || !title.trim() || !body.trim()} className="bg-emerald-600 hover:bg-emerald-700 cursor-pointer shrink-0">
                 {submitting ? "Posting..." : "Post"}
               </Button>
             </div>
@@ -466,5 +527,4 @@ export default function ContextComposer({ onPost, tripId, hubId, meetupId }: Com
     </Card>
   )
 }
-
 

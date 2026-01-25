@@ -1,8 +1,9 @@
 "use client"
 
 import { usePathname } from "next/navigation"
-import ForumLeftNav from "@/components/forum/left-nav"
+import AppLeftNav from "@/components/app-left-nav"
 import RightRail from "@/components/forum/right-rail"
+import FeedTabs from "@/components/feed-tabs"
 
 export default function ForumLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -20,13 +21,14 @@ export default function ForumLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="max-w-7xl mx-auto px-4 pb-6 pt-2 sm:pt-3 lg:pt-4">
       <div className="grid grid-cols-1 lg:grid-cols-[0.8fr_2fr_1.3fr] gap-3">
-        <div className="lg:col-start-1">
-          <ForumLeftNav />
+        <div className="hidden lg:block lg:col-start-1">
+          <AppLeftNav />
         </div>
 
         <div className="lg:col-start-2 space-y-6">
+          <FeedTabs />
           {children}
         </div>
 
@@ -37,5 +39,3 @@ export default function ForumLayout({ children }: { children: React.ReactNode })
     </div>
   )
 }
-
-

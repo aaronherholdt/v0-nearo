@@ -8,6 +8,7 @@ import { MapPin, Calendar, Users, Heart, Eye } from "lucide-react"
 import { format } from "date-fns"
 import { acceptMatch } from "@/lib/supabaseClient"
 import Link from "next/link"
+import { deriveAgeFromChild } from "@/lib/childrenUtils"
 
 interface FamilyTravelCardProps {
   travelPlan: {
@@ -23,7 +24,7 @@ interface FamilyTravelCardProps {
     family_name: string
     father_name: string
     mother_name: string
-    children: Array<{ name: string; gender: string; age: string }>
+    children: Array<{ name: string; gender: string; age?: string | number; birthdate?: string | null; birth_year?: number | null }>
     interests?: string[]
     bio?: string
     homeschool_style?: string
@@ -36,6 +37,15 @@ export default function FamilyTravelCard({ travelPlan, family, currentFamilyId }
   if (!family) return null
 
   const parentNames = [family.father_name, family.mother_name].filter(Boolean).join(" & ")
+  const childAges = (family.children || [])
+    .map((child) => {
+      const derived = deriveAgeFromChild(child)
+      if (derived !== null) return String(derived)
+      if (typeof child.age === "number") return String(child.age)
+      if (typeof child.age === "string" && child.age.trim().length > 0) return child.age.trim()
+      return ""
+    })
+    .filter((age) => age.length > 0)
 
   return (
     <Card className="hover:shadow-lg transition-shadow">
@@ -85,7 +95,9 @@ export default function FamilyTravelCard({ travelPlan, family, currentFamilyId }
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-600">Kids ages:</span>
-            <span className="font-medium">{family.children.map((child) => child.age).join(", ")}</span>
+            <span className="font-medium">
+              {childAges.length > 0 ? childAges.join(", ") : "Not specified"}
+            </span>
           </div>
 
           {family.homeschool_style && (

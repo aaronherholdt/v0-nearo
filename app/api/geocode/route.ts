@@ -133,7 +133,7 @@ export async function GET(req: Request) {
 
   try {
     const r = await fetch(`https://photon.komoot.io/api/?${photonParams}`, {
-      headers: { "User-Agent": "nearo/1.0 (support@yourapp.com)" },
+      headers: { "User-Agent": "Nearo/1.0 (support@yourapp.com)" },
     })
     if (r.ok) {
       let rows = fromPhoton(await r.json())
@@ -156,7 +156,7 @@ export async function GET(req: Request) {
 
   const r2 = await fetch(nomi.toString(), {
     headers: {
-      "User-Agent": "nearo/1.0 (support@yourapp.com)",
+      "User-Agent": "Nearo/1.0 (support@yourapp.com)",
       "Accept-Language": "en",
     },
   })

@@ -1,255 +1,141 @@
-import { ArrowLeft, ShieldCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { ShieldCheck, MapPin } from "lucide-react";
+import Link from "next/link";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import LandingNav from "@/components/landing-nav";
 
 export const metadata = {
-  title: "Data & Retention Policy | Homeschool Families",
+  title: "Data & Retention | Nearo",
   description:
-    "Plain‑English data, privacy, and retention policy for the Safety Center. Low‑friction, high‑trust.",
+    "Plain-English data, privacy, and retention policy for families. Minimal collection, strong controls, no background location tracking.",
 };
 
 export default function DataRetentionPage() {
-  const lastReviewed = "19 Aug 2025"; // update when policies change
+  const lastReviewed = "21 Oct 2025";
+
   return (
-    <div className="mx-auto max-w-3xl p-4 sm:p-8">
-      {/* Return Button */}
-      <div className="mb-6">
-        <a href="/safety" className="inline-flex items-center cursor-pointer">
-          <Button variant="outline" size="sm" className="gap-2 cursor-pointer">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Safety Center
-          </Button>
-        </a>
-      </div>
-      
-      {/* Header */}
+    <>
+      <LandingNav />
+      <div className="mx-auto max-w-3xl p-4 sm:p-8 pt-20 sm:pt-24">
+
       <div className="space-y-2 mb-8">
-        <div className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs cursor-pointer">
+        <div className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs">
           <ShieldCheck className="h-4 w-4" />
           Data & Privacy
         </div>
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Data & Retention Policy (Plain‑English)</h1>
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Data & Retention (Plain-English)</h1>
         <p className="text-muted-foreground max-w-2xl">
-          We collect only what's needed to keep families safe and make meetups work. This page explains
-          what we store, for how long, and the choices you control. <strong>This is an MVP document and
-          not legal advice.</strong>
+          We collect only what’s needed to keep families safe and make meetups work. This page explains what we store,
+          for how long, and your choices. <strong>This is an MVP policy, not legal advice.</strong>
         </p>
         <p className="text-sm text-muted-foreground">Last reviewed: {lastReviewed}</p>
       </div>
 
-      {/* What we collect section */}
+      <div className="mb-6 rounded-xl border p-4">
+        <h3 className="font-medium mb-2 flex items-center gap-2"><MapPin className="h-4 w-4" /> Location at a glance</h3>
+        <ul className="text-sm text-muted-foreground list-disc pl-5 space-y-1">
+          <li>Nearo does <strong>not</strong> track your device in the background.</li>
+          <li>We show <strong>city/region</strong> by default; never your exact home address.</li>
+          <li>Precise location is optional and only used during check-in you start.</li>
+        </ul>
+      </div>
+
+      <div className="mb-6 rounded-xl border p-4">
+        <h3 className="font-medium mb-2">Kids’ privacy at a glance</h3>
+        <ul className="text-sm text-muted-foreground list-disc pl-5 space-y-1">
+          <li>Children’s names are <strong>optional</strong> and kept <strong>private</strong>. They are never shown on profiles.</li>
+          <li>Birthdates are stored privately to keep ages accurate and are <strong>never displayed</strong>.</li>
+          <li>Other families can see only <strong>age</strong> (and optionally gender) for better matching.</li>
+        </ul>
+      </div>
+
       <Accordion type="single" collapsible className="w-full mb-6">
-        <AccordionItem value="item-1">
+        <AccordionItem value="what-we-collect">
           <AccordionTrigger>What we collect and why</AccordionTrigger>
           <AccordionContent>
-            <div className="space-y-4 pt-2">
-              <div>
-                <p className="font-medium">Account basics</p>
-                <p className="text-muted-foreground">Guardian name, email, phone: to sign in, verify you're a real person, and communicate about meetups.</p>
-              </div>
-              
-              <div>
-                <p className="font-medium">Emergency contact</p>
-                <p className="text-muted-foreground">Name + phone: shared with the host only at check‑in, to reach someone quickly in an emergency.</p>
-              </div>
-              
-              <div>
-                <p className="font-medium">Meetup check‑ins</p>
-                <p className="text-muted-foreground">A one‑time <em>hashed</em> 6‑digit code, success/failure, and a timestamp. Used to confirm "Met in real life ✅" and unlock follow‑up chat.</p>
-              </div>
-              
-              <div>
-                <p className="font-medium">Reports & moderation</p>
-                <p className="text-muted-foreground">Report reason, free‑text details, timestamps, and our actions (e.g., warnings, restrictions). Used to keep the community safe.</p>
-              </div>
-              
-              <div>
-                <p className="font-medium">Optional Guardian ID verification</p>
-                <p className="text-muted-foreground">Processed by a trusted provider. We store only <em>pass/fail</em>, document type (e.g., passport), issuing country, and verification time. <em>We do not store ID images.</em></p>
-              </div>
-              
-              <div>
-                <p className="font-medium">Security logs</p>
-                <p className="text-muted-foreground">Login attempts, OTP sends, limited device/network metadata. Used for fraud prevention and abuse rate‑limiting.</p>
-              </div>
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-        
-        <AccordionItem value="item-2">
-          <AccordionTrigger>What we don't collect</AccordionTrigger>
-          <AccordionContent>
-            <ul className="list-disc pl-6 space-y-2 pt-2">
-              <li><strong>Exact home addresses</strong> - We show city‑level location by default.</li>
-              <li><strong>Children's full names</strong> - We show age ranges only.</li>
-              <li><strong>Raw meetup codes or verification images</strong> - We store <em>hashes</em> and <em>pass/fail</em> results only.</li>
-              <li><strong>Continuous background location</strong> - We never track location in the background.</li>
+            <ul className="list-disc pl-6 space-y-2 pt-2 text-sm text-muted-foreground">
+              <li><strong>Guardian contact</strong> (name, email): sign-in, notifications.</li>
+              <li><strong>Children’s details</strong> (optional first names/initials and birthdates stored privately): to compute current age accurately for matching. Only age (and optionally gender) may be shown.</li>
+              <li><strong>Emergency contact</strong> (optional): available to hosts at check-in only.</li>
+              <li><strong>Meetup check-ins</strong>: hashed 6-digit code + timestamps (trust & audit trail).</li>
+              <li><strong>Reports & moderation</strong>: report reason/details and actions taken (community safety).</li>
+              <li><strong>Security logs</strong>: login attempts and rate-limit data (fraud prevention).</li>
             </ul>
           </AccordionContent>
         </AccordionItem>
-        
-        <AccordionItem value="item-3">
-          <AccordionTrigger>How long we keep things (retention schedule)</AccordionTrigger>
+
+        <AccordionItem value="what-we-dont">
+          <AccordionTrigger>What we don’t collect</AccordionTrigger>
           <AccordionContent>
-            <div className="space-y-4 pt-2">
+            <ul className="list-disc pl-6 space-y-2 pt-2 text-sm text-muted-foreground">
+              <li>Exact home addresses.</li>
+              <li>Raw check-in codes (we store hashes and outcomes).</li>
+              <li>Continuous/background location data.</li>
+            </ul>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="kids-handling">
+          <AccordionTrigger>How we handle kids’ information</AccordionTrigger>
+          <AccordionContent className="text-sm text-muted-foreground">
+            We keep children’s names and birthdates private in our database so we can automatically calculate current ages
+            (including as years change). We never display names or birthdates on profiles or in search. You may use initials or
+            leave names blank. You can edit or remove this information any time in your profile settings.
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="retention">
+          <AccordionTrigger>How long we keep things (retention schedule)</AccordionTrigger>
+          <AccordionContent className="pt-2 text-sm text-muted-foreground">
+            <div className="space-y-4">
               <div className="border rounded-md p-3">
                 <p className="font-medium">Account basics</p>
-                <div className="text-sm text-muted-foreground mt-1">
-                  <p><strong>Data:</strong> Email, phone, guardian name</p>
-                  <p><strong>Purpose:</strong> Sign‑in, messaging, notifications</p>
-                  <p className="mt-2"><strong>Retention period:</strong> For the life of the account (deleted on account deletion)</p>
-                </div>
+                <p>Retained while your account is active. Deleted on account deletion.</p>
               </div>
-              
+              <div className="border rounded-md p-3">
+                <p className="font-medium">Children’s profile details</p>
+                <p>Retained while your account is active to keep ages accurate. You can edit or remove them any time; deleted on account deletion.</p>
+              </div>
               <div className="border rounded-md p-3">
                 <p className="font-medium">Emergency contact</p>
-                <div className="text-sm text-muted-foreground mt-1">
-                  <p><strong>Data:</strong> Name and phone number</p>
-                  <p><strong>Purpose:</strong> Shared with host at check‑in only</p>
-                  <p className="mt-2"><strong>Retention period:</strong> Until you remove it or delete your account</p>
-                </div>
+                <p>Kept until you remove it or delete your account.</p>
               </div>
-              
               <div className="border rounded-md p-3">
-                <p className="font-medium">Meetup check‑in logs</p>
-                <div className="text-sm text-muted-foreground mt-1">
-                  <p><strong>Data:</strong> Hashed code + timestamps</p>
-                  <p><strong>Purpose:</strong> Trust signals, audit trail</p>
-                  <p className="mt-2"><strong>Retention period:</strong> 6 months</p>
-                </div>
+                <p className="font-medium">Meetup check-in logs</p>
+                <p>6 months.</p>
               </div>
-              
               <div className="border rounded-md p-3">
-                <p className="font-medium">Reports & moderation actions</p>
-                <div className="text-sm text-muted-foreground mt-1">
-                  <p><strong>Data:</strong> Report details and actions taken</p>
-                  <p><strong>Purpose:</strong> Community safety and appeals</p>
-                  <p className="mt-2"><strong>Retention period:</strong> 12 months after closure of a case</p>
-                </div>
+                <p className="font-medium">Reports & moderation</p>
+                <p>12 months after case closure.</p>
               </div>
-              
-              <div className="border rounded-md p-3">
-                <p className="font-medium">Guardian ID verification result</p>
-                <div className="text-sm text-muted-foreground mt-1">
-                  <p><strong>Data:</strong> Pass/fail + metadata</p>
-                  <p><strong>Purpose:</strong> Show "Verified" badge; enable hosting</p>
-                  <p className="mt-2"><strong>Retention period:</strong> Kept while account is active; no images stored</p>
-                </div>
-              </div>
-              
-              <div className="border rounded-md p-3">
-                <p className="font-medium">Manual ID uploads (MVP fallback only)</p>
-                <div className="text-sm text-muted-foreground mt-1">
-                  <p><strong>Data:</strong> ID documents</p>
-                  <p><strong>Purpose:</strong> Manual review if provider is unavailable</p>
-                  <p className="mt-2"><strong>Retention period:</strong> Auto‑deleted within 14 days of decision</p>
-                </div>
-              </div>
-              
               <div className="border rounded-md p-3">
                 <p className="font-medium">Security logs</p>
-                <div className="text-sm text-muted-foreground mt-1">
-                  <p><strong>Data:</strong> Login attempts, OTP, rate limit</p>
-                  <p><strong>Purpose:</strong> Fraud and abuse prevention</p>
-                  <p className="mt-2"><strong>Retention period:</strong> 90 days</p>
-                </div>
+                <p>90 days.</p>
               </div>
-              
               <div className="border rounded-md p-3">
                 <p className="font-medium">Backups</p>
-                <div className="text-sm text-muted-foreground mt-1">
-                  <p><strong>Data:</strong> All system data</p>
-                  <p><strong>Purpose:</strong> Disaster recovery only</p>
-                  <p className="mt-2"><strong>Retention period:</strong> Rolling 30–90 days; purged during deletion cycles</p>
-                </div>
+                <p>Rolling 30–90 days for disaster recovery.</p>
               </div>
             </div>
           </AccordionContent>
         </AccordionItem>
-        
-        <AccordionItem value="item-4">
-          <AccordionTrigger>Where we store data & security measures</AccordionTrigger>
-          <AccordionContent>
-            <ul className="list-disc pl-6 space-y-2 pt-2">
-              <li><strong>Encryption</strong> - Data is encrypted in transit (TLS) and at rest.</li>
-              <li><strong>Access controls</strong> - Principle of least privilege for staff access; admin 2FA required.</li>
-              <li><strong>Rate limiting</strong> - Rate‑limits on sensitive actions (OTP, check‑ins, reports).</li>
-              <li><strong>Audit trails</strong> - Audit logs for verification, check‑ins, and moderation.</li>
-            </ul>
+
+        <AccordionItem value="controls">
+          <AccordionTrigger>Your choices & rights</AccordionTrigger>
+          <AccordionContent className="text-sm text-muted-foreground">
+            Download your data, delete your account, or change privacy settings any time in Settings. You can also remove children’s names or
+            birthdates at any time. If you need help, {""}
+            <Link href="/contact" className="text-primary underline">contact support</Link>. Regional rights (GDPR/POPIA/CCPA) apply.
           </AccordionContent>
         </AccordionItem>
-        
-        <AccordionItem value="item-5">
-          <AccordionTrigger>Your choices & controls</AccordionTrigger>
-          <AccordionContent>
-            <ul className="list-disc pl-6 space-y-2 pt-2">
-              <li><strong>Emergency contact management</strong> - Update or remove your emergency contact at any time.</li>
-              <li><strong>Privacy settings</strong> - Toggle privacy settings (city‑level location, hide child names).</li>
-              <li><strong>Data access & deletion</strong> - Request a copy of your data or deletion: <a href="/contact" className="text-primary underline">contact us</a>.</li>
-              <li><strong>Feature opt-outs</strong> - Opt out of optional features like check‑in geofencing.</li>
-            </ul>
-          </AccordionContent>
-        </AccordionItem>
-        
-        <AccordionItem value="item-6">
-          <AccordionTrigger>Children's data</AccordionTrigger>
-          <AccordionContent>
-            <div className="space-y-4 pt-2">
-              <div>
-                <p className="font-medium">Platform usage</p>
-                <p className="text-muted-foreground">Our platform is for guardians. Children should not create accounts or post content.</p>
-              </div>
-              
-              <div>
-                <p className="font-medium">Profile information</p>
-                <p className="text-muted-foreground">Profiles may include age ranges for matching; never full names of minors.</p>
-              </div>
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-        
-        <AccordionItem value="item-7">
-          <AccordionTrigger>Regional notes (GDPR/POPIA/CCPA)</AccordionTrigger>
-          <AccordionContent>
-            <div className="space-y-4 pt-2">
-              <div>
-                <p className="font-medium">Legal bases</p>
-                <p className="text-muted-foreground">Consent (e.g., check‑in), contract (to provide the service), and legitimate interests (security, fraud prevention).</p>
-              </div>
-              
-              <div>
-                <p className="font-medium">Your rights</p>
-                <p className="text-muted-foreground">You may have rights to access, correct, delete, or restrict processing of your data. Use the controls above or <a href="/contact" className="text-primary underline">contact us</a>.</p>
-              </div>
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-        
-        <AccordionItem value="item-8">
-          <AccordionTrigger>Changes to this policy</AccordionTrigger>
-          <AccordionContent>
-            <p className="text-muted-foreground pt-2">
-              We will update this page when practices change and note the revised date. Significant changes will be communicated in‑app or by email.
-            </p>
+
+        <AccordionItem value="changes">
+          <AccordionTrigger>Policy changes</AccordionTrigger>
+          <AccordionContent className="text-sm text-muted-foreground">
+            We’ll update this page and notify you in-app or by email if the changes are significant.
           </AccordionContent>
         </AccordionItem>
       </Accordion>
-
-      {/* Help Section */}
-      <div className="mt-10 p-4 border rounded-lg bg-muted/50">
-        <h2 className="text-lg font-medium mb-2">Questions?</h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          If you have additional questions or concerns about our data practices, please contact our support team.
-        </p>
-        <Button asChild>
-          <a href="/contact">Contact Support</a>
-        </Button>
       </div>
-    </div>
+    </>
   );
 }

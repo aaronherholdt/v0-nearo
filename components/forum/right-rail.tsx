@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Calendar, MapPin, Users, Plane, MessageCircle, User } from "lucide-react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { createClientComponentClient } from "@/lib/supabase/client"
+import { deriveAgeFromChild } from "@/lib/childrenUtils"
 
 // add near top
 const normalizeCity = (s?: string | null) =>
@@ -25,6 +26,8 @@ type Meetup = {
   place_id: string;
   time: string;
   created_at: string;
+  meetup_date: string;  
+  meetup_status: string;
 }
 
 type FamilyMatch = {
@@ -33,7 +36,7 @@ type FamilyMatch = {
   avatar_url?: string;
   match_type: 'resident' | 'visitor';
   match_score: number; // 0-100 score based on age match
-  children: Array<{ age: number }>;
+  children: Array<{ age?: number; birthdate?: string | null; birth_year?: number | null }>;
   location: string;
   visit_dates?: { start: string; end: string }; // For visitors
   distance_km?: number; // For residents
@@ -49,6 +52,13 @@ type TripMatch = {
   end_date: string;
   kids_ages: number[];
 }
+
+const toAgeArray = (children: any): number[] =>
+  Array.isArray(children)
+    ? (children as any[])
+        .map((child: any) => deriveAgeFromChild(child))
+        .filter((age): age is number => age !== null)
+    : []
 
 // Helper function to format date range in a readable format
 function formatDateRange(start: string, end: string): string {
@@ -82,7 +92,7 @@ export default function RightRail() {
   const section = useMemo(() => {
     if (pathname?.startsWith("/forum/trips")) return "Trips"
     if (pathname?.startsWith("/forum/meetups")) return "Meetups"
-    if (pathname?.startsWith("/forum/hubs")) return "Hubs"
+    if (pathname?.startsWith("/hubs")) return "Hubs"
     return "General"
   }, [pathname])
 
@@ -104,92 +114,101 @@ export default function RightRail() {
         
         const { data: profile } = await supabase
           .from('profiles')
-          .select('standard_city, standard_country, children, location_lat, location_lng, location_full_name, current_location')
+          .select('standard_city, standard_country, children, location_lat, location_lng, location_full_name, current_location, match_prefs')
           .eq('id', user.id)
           .single()
 
         // inside fetchData(), after you load `profile`:
+        const tripsViewMin = Number(profile?.match_prefs?.trips_view?.min_km ?? 0)
+        const tripsViewMax = Number(profile?.match_prefs?.trips_view?.max_km ?? 200)
+
         const cityKey = normalizeCity(
           profile?.standard_city || profile?.location_full_name || profile?.current_location
         )
         if (!cityKey) return
         
         // Extract user's children ages for matching
-        const userChildrenAges = Array.isArray(profile?.children) 
-          ? profile.children.map((c: any) => typeof c?.age === 'number' ? c.age : Number(c?.age || 0)).filter(Boolean)
-          : []
-        
-        // 1) Nearby meetups (now filtered in SQL, fast via index)
-        const { data: meetups } = await supabase
-          .from('forum_topics')
-          .select('id, title, meta, created_at')
-          .eq('category', 'meetups')
-          .filter('meta->>city_id', 'eq', cityKey) // meta.city_id is already normalized when created
-          .order('created_at', { ascending: false })
-          .limit(3)
-        
-        setNearbyMeetups((meetups || []).map((m: any) => ({
+        const userChildrenAges = toAgeArray(profile?.children)
+
+        const userLat = profile?.location_lat
+        const userLng = profile?.location_lng
+        const radiusKm = 50
+
+        // Meetups (server filters by meetups_view ring)
+        const { data: rpcMeetups, error: meetupErr } =
+          await supabase.rpc('nearby_meetups', { _user: user.id })
+        if (meetupErr) console.error('nearby_meetups', meetupErr)
+        const currentDate = new Date().toISOString().split('T')[0];
+
+        const validMeetups = (rpcMeetups ?? []).map((m: any) => ({
           id: String(m.id),
           title: m.title,
-          place_id: m?.meta?.place_id || '',
-          time: m?.meta?.time || '',
-          created_at: m.created_at
-        })))
-        
-        const { data: localFamilies, error: famErr } = await supabase.rpc('profiles_nearby', {
-          p_city: cityKey,
-          p_exclude: user.id,
-        })
-        if (famErr) console.error('profiles_nearby error', famErr)
+          place_id: m.place_id || '',
+          created_at: m.created_at,
+          distance_km: m.distance_km ?? undefined,
+          meetup_date: m.meetup_date,
+          meetup_status: m.meetup_status,
+        }))
+          .filter((m: any) => m.meetup_date >= currentDate && m.meetup_status === 'upcoming')
+          .sort((a: any, b: any) => new Date(a.meetup_date).getTime() - new Date(b.meetup_date).getTime())
+          .slice(0, 3);
 
-        console.log('Family matching query:', {
-          cityKey,
-          userId: user.id,
-          queryResult: localFamilies,
-          error: famErr
+        setNearbyMeetups(validMeetups);
+
+        if (!userLat || !userLng) {
+          setFamilyMatches([])
+          setLoading(false)
+          return
+        }
+
+        /* === REPLACE the old "profiles" fetch + local filtering with this RPC call === */
+
+        const { data: rpcFamilies, error: famErr } = await supabase
+          .rpc('nearby_families', { _user: user.id, _mutual: false })
+
+        if (famErr) console.error('nearby_families error:', famErr)
+
+        // Build resident matches from RPC rows and compute age-match score (same logic as dashboard)
+        const processedFamilies: FamilyMatch[] = (rpcFamilies || []).map((f: any) => {
+          const familyChildrenAges = toAgeArray(f.children)
+
+          const matchScore = calculateAgeMatchScore(userChildrenAges, familyChildrenAges)
+          const label = f.location_full_name || f.current_location || f.standard_city || 'Unknown'
+
+          return {
+            id: f.id,
+            family_name: f.family_name || 'Family',
+            avatar_url: f.avatar_url || f.family_photo_url || '', // map RPC field to rail avatar
+            match_type: 'resident',
+            match_score: matchScore,
+            children: Array.isArray(f.children) ? f.children : [],
+            location: label,
+            distance_km: typeof f.distance_km === 'number' ? f.distance_km : undefined,
+          } as FamilyMatch
         })
-        
-        // 3. Fetch families with upcoming trips to user's location
+
+        /* === keep the visitors (trip) logic that follows exactly as you have it === */
+
+        // 3. Fetch families with upcoming trips to user's location (within radius)
         const today = new Date().toISOString().split('T')[0]
-        const { data: upcomingVisitors } = await supabase
+        const { data: allTrips } = await supabase
           .from('forum_topics')
           .select('id, title, author_id, author_family_name, meta, created_at')
           .eq('category', 'trips')
-          .filter('meta->>city_id', 'eq', cityKey)
+          .not('meta->>lat', 'is', null)
+          .not('meta->>lng', 'is', null)
           .order('created_at', { ascending: false })
-          .limit(20)
-        
-        // Process local families and calculate age match scores
-        const processedFamilies = (localFamilies || []).map(family => {
-          const familyChildrenAges = Array.isArray(family.children) 
-            ? family.children.map((c: any) => typeof c?.age === 'number' ? c.age : Number(c?.age || 0)).filter(Boolean)
-            : []
-          
-          // Calculate match score based on minimum age gap between any children
-          const matchScore = calculateAgeMatchScore(userChildrenAges, familyChildrenAges)
-          
-          // Calculate approximate distance if coordinates available
-          let distance = null
-          if (profile?.location_lat && profile?.location_lng && family.location_lat && family.location_lng) {
-            distance = calculateDistance(
-              profile!.location_lat, profile!.location_lng,
-              family.location_lat, family.location_lng
-            )
-          }
-          
-          const label = family.location_full_name || family.current_location || family.standard_city || "Unknown"
+          .limit(50)
 
-          return {
-            id: family.id,
-            family_name: family.family_name || 'Family',
-            avatar_url: family.avatar_url,
-            match_type: 'resident',
-            match_score: matchScore,
-            children: Array.isArray(family.children) ? family.children : [],
-            location: label,
-            distance_km: distance
-          } as FamilyMatch
-        })
+        const upcomingVisitors = (allTrips || [])
+          .filter((trip: any) => {
+            const tripLat = Number(trip.meta?.lat)
+            const tripLng = Number(trip.meta?.lng)
+            if (!tripLat || !tripLng || !userLat || !userLng) return false
+
+            const distance = calculateDistance(userLat, userLng, tripLat, tripLng)
+            return distance >= tripsViewMin && distance <= tripsViewMax
+          })
         
         // Process visitors (families with trips to user's location)
         // Only include trips that are still active or upcoming by end or start date
@@ -209,9 +228,7 @@ export default function RightRail() {
           
           if (!visitorProfile) return null
           
-          const visitorChildrenAges = Array.isArray(visitorProfile.children) 
-            ? visitorProfile.children.map((c: any) => typeof c?.age === 'number' ? c.age : Number(c?.age || 0)).filter(Boolean)
-            : []
+          const visitorChildrenAges = toAgeArray(visitorProfile.children)
           
           // If you later persist kids_ages in columns, swap here
           const tripKidsAges = visitorChildrenAges
@@ -231,47 +248,28 @@ export default function RightRail() {
           } as FamilyMatch
         }))
         
-        // Filter out null values and combine residents and visitors
-        const allMatches = [...processedFamilies, ...processedVisitors.filter(Boolean) as FamilyMatch[]]
-        
-        // Sort by match score (descending) and limit to 5 matches
-        const sortedMatches = allMatches
-          .sort((a, b) => b.match_score - a.match_score)
-          .slice(0, 5)
+        // Merge resident + visitor matches, sort by score, limit to 5 (same as before)
+        const allMatches = [
+          ...processedFamilies,
+          ...(processedVisitors.filter(Boolean) as FamilyMatch[]),
+        ]
+
+        const sortedMatches = allMatches.sort((a, b) => b.match_score - a.match_score).slice(0, 5)
         
         setFamilyMatches(sortedMatches)
         
-        // 4) Trip matches (e.g., all active trips; later refine by interests)
-        const { data: relevantTrips } = await supabase
-          .from('forum_topics')
-          .select('id, title, author_id, author_family_name, meta, created_at')
-          .eq('category', 'trips')
-          .filter('meta->>city_id', 'eq', cityKey)   // ← only trips to your city
-          .neq('author_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(20)
-        
-        if (relevantTrips) {
-          // Filter active/upcoming trips by end or start date
-          const activeTrips = relevantTrips.filter((trip: any) => {
-            const start = String(trip?.meta?.start || '')
-            const end = String(trip?.meta?.end || '')
-            return (end && end >= today) || (start && start >= today)
-          }).slice(0, 5)
-
-          const formattedTrips = activeTrips.map(trip => ({
-            id: trip.id,
-            title: trip.title,
-            family_name: trip.author_family_name || 'Family',
-            avatar_url: '',
-            destination: trip?.meta?.city_id || 'Unknown destination',
-            start_date: String(trip?.meta?.start || ''),
-            end_date: String(trip?.meta?.end || ''),
-            kids_ages: Array.isArray(trip?.meta?.kids_ages) ? trip.meta.kids_ages : []
-          }))
-          
-          setTripMatches(formattedTrips)
-        }
+        // Trips (server filters by trips_view ring)
+        const { data: rpcTrips, error: tripsErr } =
+          await supabase.rpc('nearby_trips', { _user: user.id })
+        if (tripsErr) console.error('nearby_trips', tripsErr)
+        setTripMatches((rpcTrips ?? []).map((t: any) => ({
+          id: String(t.id),
+          title: t.title,
+          destination: t.place_id || 'Unknown destination',
+          start_date: t.starts_on || '',
+          end_date: '',
+          kids_ages: [],
+        })).slice(0, 5))
       } catch (error) {
         console.error('Error fetching smart matches:', error)
       } finally {
@@ -351,7 +349,7 @@ export default function RightRail() {
         <CardHeader>
           <CardTitle>Family Matches</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className={`space-y-3 ${familyMatches.length >= 2 ? "max-h-96 overflow-y-auto" : ""}`}>
           {loading ? (
             <div className="text-sm text-gray-500">Finding matches near you...</div>
           ) : familyMatches.length > 0 ? (
@@ -418,7 +416,7 @@ export default function RightRail() {
                     <Button
                       size="sm"
                       className="bg-emerald-600 hover:bg-emerald-700 cursor-pointer flex items-center gap-1 flex-1"
-                      onClick={() => router.push(`/messages/new?to=${family.id}`)}
+                      onClick={() => router.push(`/chat/${family.id}`)}
                     >
                       <MessageCircle className="h-3 w-3" /> Message
                     </Button>
@@ -438,7 +436,7 @@ export default function RightRail() {
         <CardHeader>
           <CardTitle>Upcoming Meetups</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className={`space-y-2 ${nearbyMeetups.length >= 2 ? "max-h-96 overflow-y-auto" : ""}`}>
           {loading ? (
             <div className="text-sm text-gray-500">Loading meetups...</div>
           ) : nearbyMeetups.length > 0 ? (
@@ -476,7 +474,7 @@ export default function RightRail() {
         <CardHeader>
           <CardTitle>Trip Matches</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className={`space-y-2 ${tripMatches.length >= 2 ? "max-h-96 overflow-y-auto" : ""}`}>
           {loading ? (
             <div className="text-sm text-gray-500">Loading trips...</div>
           ) : tripMatches.length > 0 ? (
@@ -523,5 +521,4 @@ function RightItem({ title, subtitle }: { title: string; subtitle: string }) {
     </div>
   )
 }
-
 

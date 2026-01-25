@@ -58,7 +58,7 @@ export const fetchLocationSuggestions = async (
     return s;
   };
 
-  const dedup = <T extends { city: string; country: string }>(rows: T[]) => {
+  const dedup = (rows: any[]) => {
     const seen = new Set<string>();
     return rows.filter((r) => {
       const key = `${norm(r.city)}|${norm(r.country)}`;
@@ -72,10 +72,10 @@ export const fetchLocationSuggestions = async (
   try {
     const params = new URLSearchParams();
     params.set("q", q || (bias ? `${bias.lat},${bias.lon}` : ""));
-    params.set("limit", "12");
+    params.set("limit", "25");
     params.set("lang", "en");
     // Only population places:
-    ["place:city", "place:town", "place:village"].forEach((t) => params.append("osm_tag", t));
+    ["place:country", "place:region", "place:state", "place:city", "place:town", "place:village", "place:municipality", "place:suburb", "place:island", "boundary:administrative"].forEach((t) => params.append("osm_tag", t));
     if (bias) {
       params.set("lat", String(bias.lat));
       params.set("lon", String(bias.lon));
@@ -109,7 +109,7 @@ export const fetchLocationSuggestions = async (
         })
         .filter(Boolean);
 
-      let out = dedup(rows as any).sort((a: any, b: any) => b._score - a._score).slice(0, 8);
+      let out = dedup(rows).sort((a: any, b: any) => b._score - a._score).slice(0, 8);
       // If we got a very strong match (Knysna, Mossel Bay, Plettenberg Bay), return now
       if (out.length && out[0]._score >= 90) {
         return out.map(({ _score, type, ...r }: any) => r);
@@ -189,9 +189,9 @@ export const fetchLocationSuggestions = async (
           (x.type === "city" || x.type === "town" || x.type === "village" || x.type === "municipality")
       );
 
-    const out = dedup(rows as any)
+    const out = dedup(rows)
       .sort((a: any, b: any) => b._score - a._score)
-      .slice(0, 8)
+      .slice(0, 12)
       .map(({ _score, type, ...r }: any) => r);
 
     return out;

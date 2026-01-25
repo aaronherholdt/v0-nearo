@@ -9,7 +9,7 @@ import EditTripForm from "@/components/edit-trip-form"
 import EditGeneralForm from "@/components/edit-general-form"
 
 export default async function EditThreadPage({ params }: { params: { id: string } }) {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // Get the current user
   const {

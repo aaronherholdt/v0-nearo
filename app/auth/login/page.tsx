@@ -1,8 +1,16 @@
-import { cookies } from "next/headers";
+// app/auth/login/page.tsx
+export const metadata = {
+  robots: { index: false, follow: false },
+  title: 'Log in · Nearo',
+  description: 'Log in to Nearo to plan trips, meetups, and connect with traveling families.',
+  // optional: set a self-canonical to avoid inherited values
+  alternates: { canonical: '/auth/login' },
+}
+
 import { redirect } from "next/navigation";
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createClient } from "@/lib/supabase/server";
 import LoginForm from "@/components/login-form"
-import { Suspense } from "react"
+import { getPostAuthRedirectPath } from "@/lib/auth/redirects"
 
 function LoginPageContent() {
   return (
@@ -13,9 +21,12 @@ function LoginPageContent() {
 }
 
 export default async function LoginPage() {
-  const supabase = createServerComponentClient({ cookies });
+  const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
-  if (session) redirect("/dashboard"); // <-- same destination as above
+  if (session) {
+    const destination = await getPostAuthRedirectPath(supabase)
+    redirect(destination)
+  }
 
   return <LoginPageContent />
 }

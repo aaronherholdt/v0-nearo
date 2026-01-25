@@ -1,0 +1,24 @@
+{
+  "name": "Nearo",
+  "short_name": "Nearo",
+  "description": "Get instant notifications for smart matches",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#059669",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "public/Nearo.png",
+      "sizes": "192x192",
+      "type": "public/Nearo.png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

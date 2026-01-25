@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { MessageCircle, Bookmark, ArrowLeft, Calendar, MapPin, Users } from "lucide-react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { createClientComponentClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import Link from "next/link"
@@ -419,3 +419,4 @@ export default function ThreadPage({ thread, replies, currentUser }: ThreadPageP
     </div>
   )
 }
+

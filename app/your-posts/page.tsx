@@ -1,9 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import YourPostsPage from "@/components/your-posts-page"
+import IconPageShell from "@/components/icon-page-shell"
 
 export default async function YourPosts() {
-  const supabase = createClient()
+  const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -43,5 +44,9 @@ export default async function YourPosts() {
     reply_count: post.replies?.[0]?.count || 0
   })) || []
 
-  return <YourPostsPage user={user} profile={profile} posts={processedPosts} />
+  return (
+    <IconPageShell contentClassName="flex flex-col">
+      <YourPostsPage user={user} profile={profile} posts={processedPosts} />
+    </IconPageShell>
+  )
 }
