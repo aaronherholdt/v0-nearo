@@ -85,40 +85,16 @@ export default function AppLeftNav() {
     }
     window.addEventListener("storage", onStorage)
 
-    const forumChannel = supabase
-      .channel(`left-nav-forum-${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${userId}`,
-        },
-        () => refreshForumCount()
-      )
-      .subscribe()
-
-    const messageChannel = supabase
-      .channel(`left-nav-messages-${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "messages",
-          filter: `receiver_id=eq.${userId}`,
-        },
-        () => refreshMessageCount()
-      )
-      .subscribe()
+    const interval = window.setInterval(() => {
+      refreshForumCount()
+      refreshMessageCount()
+    }, 120_000)
 
     return () => {
       window.removeEventListener("notifications:changed", onForumChanged)
       window.removeEventListener("messages:changed", onMessagesChanged)
       window.removeEventListener("storage", onStorage)
-      supabase.removeChannel(forumChannel)
-      supabase.removeChannel(messageChannel)
+      window.clearInterval(interval)
     }
   }, [userId, supabase, refreshForumCount, refreshMessageCount])
 
@@ -249,4 +225,3 @@ export default function AppLeftNav() {
     </nav>
   )
 }
-
