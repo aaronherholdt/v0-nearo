@@ -71,7 +71,7 @@ export default async function FamilyProfilePage({
   const profile = familyProfile as FamilyProfile
 
   // Determine back link based on referer
-  const headersList = headers()
+  const headersList = await headers()
   const referer = headersList.get('referer') || ''
   const cameFromFamilies = referer.includes('/families') && !referer.includes('/families/')
   const cameFromWorldview = referer.includes('/worldview')

@@ -31,9 +31,12 @@ next-env.d.ts
 #Ignore cursor AI rules
 .cursor\rules\codacy.mdc
  
-# Local tool/IDE settings 
-.claude/ 
-.cursor/ 
-.cursor-backup/ 
-.agent/ 
-.agents/ 
+# Local tool/IDE settings
+.claude/
+.cursor/
+.cursor-backup/
+.agent/
+.agents/
+
+# Firebase service account keys
+firebase-service-account*.json

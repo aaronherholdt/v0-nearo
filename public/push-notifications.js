@@ -11,6 +11,20 @@ const firebaseConfig = {
 
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
+
+// Initialize Firebase App Check when configured
+const appCheckSiteKey = window.NEARO_FIREBASE_APPCHECK_SITE_KEY;
+if (appCheckSiteKey && typeof firebase.appCheck === 'function') {
+  try {
+    const appCheck = firebase.appCheck();
+    appCheck.activate(appCheckSiteKey, true);
+  } catch (error) {
+    console.warn('Firebase App Check failed to initialize:', error);
+  }
+} else if (appCheckSiteKey && typeof firebase.appCheck !== 'function') {
+  console.warn('Firebase App Check script is missing. Load firebase-app-check-compat.js.');
+}
+
 const messaging = firebase.messaging();
 
 // Main notification setup function
@@ -152,18 +166,35 @@ function showInAppNotification(title, body, url) {
     animation: slideIn 0.3s ease-out;
   `;
 
-  notification.innerHTML = `
-    <div style="display: flex; align-items: center;">
-      <div style="flex: 1;">
-        <h4 style="margin: 0 0 5px 0; font-size: 16px;">${title}</h4>
-        <p style="margin: 0; color: #666; font-size: 14px;">${body}</p>
-      </div>
-      <button onclick="this.parentElement.parentElement.remove()"
-              style="background: none; border: none; font-size: 20px; cursor: pointer; margin-left: 10px;">
-        ✕
-      </button>
-    </div>
-  `;
+  const contentRow = document.createElement('div');
+  contentRow.style.cssText = 'display: flex; align-items: center;';
+
+  const contentCol = document.createElement('div');
+  contentCol.style.cssText = 'flex: 1;';
+
+  const titleEl = document.createElement('h4');
+  titleEl.style.cssText = 'margin: 0 0 5px 0; font-size: 16px;';
+  titleEl.textContent = typeof title === 'string' ? title : '';
+
+  const bodyEl = document.createElement('p');
+  bodyEl.style.cssText = 'margin: 0; color: #666; font-size: 14px;';
+  bodyEl.textContent = typeof body === 'string' ? body : '';
+
+  const closeButton = document.createElement('button');
+  closeButton.type = 'button';
+  closeButton.style.cssText = 'background: none; border: none; font-size: 20px; cursor: pointer; margin-left: 10px;';
+  closeButton.setAttribute('aria-label', 'Dismiss notification');
+  closeButton.textContent = 'x';
+  closeButton.addEventListener('click', (event) => {
+    event.stopPropagation();
+    notification.remove();
+  });
+
+  contentCol.appendChild(titleEl);
+  contentCol.appendChild(bodyEl);
+  contentRow.appendChild(contentCol);
+  contentRow.appendChild(closeButton);
+  notification.appendChild(contentRow);
 
   // Navigate on click
   if (url) {
@@ -198,3 +229,4 @@ document.head.appendChild(style);
 
 // Expose the setup function globally (so you can call it from any button)
 window.setupPushNotifications = setupPushNotifications;
+

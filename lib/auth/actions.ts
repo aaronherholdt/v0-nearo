@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/server"
 
 export async function signInWithGoogle(formData: FormData) {
   const flow = (formData.get("flow") as string) || "login" // "login" | "signup"
-  const origin = (headers() as any).get("origin") || ""
+  const headersList = await headers()
+  const origin = headersList.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || ""
   const supabase = await createClient()
 
   const { data, error } = await supabase.auth.signInWithOAuth({

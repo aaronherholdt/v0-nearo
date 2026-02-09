@@ -38,6 +38,8 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  const firebaseAppCheckSiteKey = process.env.NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY ?? ""
+  const firebaseVapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY ?? ""
   const supabase = await createClient()
   const {
     data: { user },
@@ -51,6 +53,9 @@ export default async function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <Script id="firebase-client-config" strategy="beforeInteractive">
+          {`(function(){var appCheckKey=${JSON.stringify(firebaseAppCheckSiteKey)};var vapidKey=${JSON.stringify(firebaseVapidKey)};if(appCheckKey&&!window.NEARO_FIREBASE_APPCHECK_SITE_KEY){window.NEARO_FIREBASE_APPCHECK_SITE_KEY=appCheckKey;}if(vapidKey&&!window.NEARO_VAPID_KEY){window.NEARO_VAPID_KEY=vapidKey;}})();`}
+        </Script>
         <Script
           defer
           data-website-id="dfid_0N4CqIkNoYWj0yQmW5buJ"
@@ -59,7 +64,9 @@ export default async function RootLayout({
         />
       </head>
       <Script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js" />
+      <Script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-check-compat.js" />
       <Script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js" />
+      <Script src="/push-notifications.js" />
       <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       <body className={`${inter.className} bg-gray-50 min-h-screen`}>
         <SimpleNav user={user} />
