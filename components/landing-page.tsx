@@ -167,12 +167,13 @@ export default function LandingPage() {
           >
 
             <h1 className="text-5xl md:text-7xl font-bold text-gray-900 mb-6 font-sans">
-              Meet families nearby <span className="text-emerald-600">and when travelling</span>
+              The networking platform for{" "}
+              <span className="text-emerald-600">homeschool, worldschool, and unschool</span> families
             </h1>
 
             <p className="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
-              Join a community of adventurous families around the globe. Find your travel tribe, local lovelies and create
-              unforgettable learning experiences together.
+              Log in to find families and hubs near you or on the road, then post, message, and connect around shared
+              learning journeys.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">

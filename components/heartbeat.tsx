@@ -8,6 +8,9 @@ export default function Heartbeat() {
   useEffect(() => {
     let timer: any;
     const ping = async () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return;
+      }
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       await supabase
@@ -16,10 +19,9 @@ export default function Heartbeat() {
         .eq("id", user.id);
     };
     ping();                        // immediately on mount
-    timer = setInterval(ping, 60_000); // then every 60s
+    timer = setInterval(ping, 300_000); // then every 5 minutes
     return () => clearInterval(timer);
   }, [supabase]);
 
   return null;
 }
-

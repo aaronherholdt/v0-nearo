@@ -87,25 +87,12 @@ export default function SimpleNav({ user }: SimpleNavProps) {
     }
     window.addEventListener("storage", onStorage)
 
-    // 3) Also listen to realtime DB changes as a safety net
-    const channel = supabase
-      .channel("nav-messages")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "messages",
-          filter: `receiver_id=eq.${user.id}`,
-        },
-        () => loadUnreadMessages()
-      )
-      .subscribe()
+    const interval = window.setInterval(() => loadUnreadMessages(), 120_000)
 
     return () => {
       window.removeEventListener("messages:changed", onChanged)
       window.removeEventListener("storage", onStorage)
-      supabase.removeChannel(channel)
+      window.clearInterval(interval)
     }
   }, [user?.id, supabase, loadUnreadMessages])
 
@@ -137,20 +124,12 @@ export default function SimpleNav({ user }: SimpleNavProps) {
     }
     window.addEventListener("storage", onStorage)
 
-    // 3) Realtime as a safety net
-    const channel = supabase
-      .channel("nav-notifications")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user?.id}` },
-        () => loadForumNotifications()
-      )
-      .subscribe()
+    const interval = window.setInterval(() => loadForumNotifications(), 120_000)
 
     return () => {
       window.removeEventListener("notifications:changed", onChanged)
       window.removeEventListener("storage", onStorage)
-      supabase.removeChannel(channel)
+      window.clearInterval(interval)
     }
   }, [user?.id, supabase, loadForumNotifications])
 
@@ -401,4 +380,3 @@ export default function SimpleNav({ user }: SimpleNavProps) {
     </header>
   )
 }
-
